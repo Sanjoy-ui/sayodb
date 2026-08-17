@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+dist
+**/dist
+.git
+.obsidian
+.gemini
+*.log
+sayodb.aof
+dump.rdb

@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  sayodb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sayodb/server:latest
+    container_name: sayodb-server
+    restart: unless-stopped
+    ports:
+      - "6380:6380"
+    volumes:
+      - sayodb_data:/data
+    environment:
+      - SAYODB_PORT=6380
+      - SAYODB_HOST=0.0.0.0
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 6380 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  sayodb_data:
+    driver: local

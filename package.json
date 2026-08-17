@@ -1,0 +1,19 @@
+{
+  "name": "sayodb-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "sayoDB Monorepo - High-Performance In-Memory Database & Tools",
+  "scripts": {
+    "dev": "pnpm --filter sayodb-server dev",
+    "dev:server": "pnpm --filter sayodb-server dev",
+    "dev:cli": "pnpm --filter sayodb-cli dev",
+    "dev:gui": "pnpm --filter sayodb-gui dev",
+    "sayodb": "pnpm --filter sayodb-cli dev",
+    "cli": "pnpm --filter sayodb-cli dev",
+    "server": "pnpm --filter sayodb-server dev",
+    "gui": "pnpm --filter sayodb-gui dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@sayodb/client",
+  "version": "0.1.0",
+  "description": "Official Node.js & TypeScript client SDK driver for sayoDB in-memory database",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "sayodb",
+    "client",
+    "sdk",
+    "driver",
+    "database",
+    "redis",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.5",
+    "vitest": "^4.1.10"
+  }
+}
