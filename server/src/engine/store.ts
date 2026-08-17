@@ -1,19 +1,43 @@
 import { DataObject, createDataObject, isExpired, DataType } from "./data-object.js";
+import { diskSpillStore } from "./disk/store.js";
+import { logger } from "../utils/logger.js";
 
 export class MemoryStore {
   private db: Map<string, DataObject> = new Map();
 
   public getRaw(key: string): DataObject | null {
-    const obj = this.db.get(key);
-    if (!obj) return null;
+    // 1. Check L1 RAM
+    let obj: DataObject | null = this.db.get(key) || null;
 
-    if (isExpired(obj)) {
-      this.db.delete(key);
-      return null;
+    if (obj) {
+      if (isExpired(obj)) {
+        this.db.delete(key);
+        return null;
+      }
+      obj.lastAccessed = Date.now();
+      return obj;
     }
 
-    obj.lastAccessed = Date.now();
-    return obj;
+    // 2. Check L2 Cold Disk Store (Hot Promotion)
+    if (diskSpillStore.hasKv(key)) {
+      obj = diskSpillStore.getKv(key);
+      if (!obj) return null;
+
+      if (isExpired(obj)) {
+        diskSpillStore.removeKv(key);
+        return null;
+      }
+
+      // Promote back to L1 RAM & remove from L2 Disk
+      obj.lastAccessed = Date.now();
+      this.db.set(key, obj);
+      diskSpillStore.removeKv(key);
+
+      logger.debug({ key }, "[ZERO-OOM SPILLING] Promoted spilled key from L2 Disk to L1 RAM");
+      return obj;
+    }
+
+    return null;
   }
 
   public get(key: string): any | null {
@@ -22,11 +46,21 @@ export class MemoryStore {
   }
 
   public set(key: string, value: any, type: DataType = "string", ttlMs: number | null = null): void {
+    if (diskSpillStore.hasKv(key)) {
+      diskSpillStore.removeKv(key);
+    }
+
     const obj = createDataObject(type, value, ttlMs);
     this.db.set(key, obj);
   }
 
   public delete(key: string): boolean {
+    const inRam = this.db.delete(key);
+    const inDisk = diskSpillStore.removeKv(key);
+    return inRam || inDisk;
+  }
+
+  public deleteRamOnly(key: string): boolean {
     return this.db.delete(key);
   }
 
@@ -55,6 +89,7 @@ export class MemoryStore {
     const matched: string[] = [];
     const regex = this.globToRegex(pattern);
 
+    // Check RAM keys
     for (const [key, obj] of this.db.entries()) {
       if (isExpired(obj)) {
         this.db.delete(key);
@@ -62,6 +97,13 @@ export class MemoryStore {
       }
 
       if (regex.test(key)) {
+        matched.push(key);
+      }
+    }
+
+    // Check Disk keys
+    for (const key of diskSpillStore.getAllSpilledKvKeys()) {
+      if (!this.db.has(key) && regex.test(key)) {
         matched.push(key);
       }
     }
@@ -76,11 +118,12 @@ export class MemoryStore {
         this.db.delete(key);
       }
     }
-    return this.db.size;
+    return this.db.size + diskSpillStore.countSpilledKv();
   }
 
   public flushdb(): void {
     this.db.clear();
+    diskSpillStore.clearAll();
   }
 
   public getEntries(): [string, DataObject][] {

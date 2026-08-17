@@ -20,6 +20,10 @@ export interface SayoDBConfig {
   appendFsync: AofFsyncPolicy;
   saveRdbFilename: string;
   logLevel: "debug" | "info" | "warn" | "error";
+  spillEnabled: boolean;
+  spillThresholdPercent: number; // e.g. 0.85 for 85%
+  spillTargetPercent: number; // e.g. 0.70 for 70%
+  spillDiskPath: string;
 }
 
 export const DEFAULT_CONFIG: SayoDBConfig = {
@@ -35,4 +39,8 @@ export const DEFAULT_CONFIG: SayoDBConfig = {
   appendFsync: "everysec",
   saveRdbFilename: "dump.rdb",
   logLevel: "info",
+  spillEnabled: true,
+  spillThresholdPercent: 0.85, // Configurable default 85% RAM threshold
+  spillTargetPercent: 0.70, // Spills down to 70% target
+  spillDiskPath: "data/spill.db",
 };

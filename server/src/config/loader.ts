@@ -59,7 +59,35 @@ export function loadConfig(configPath?: string): SayoDBConfig {
         case "loglevel":
           config.logLevel = val as SayoDBConfig["logLevel"];
           break;
+        case "spill-enabled":
+          config.spillEnabled = val.toLowerCase() === "yes" || val.toLowerCase() === "true";
+          break;
+        case "spill-threshold":
+          const thresh = parseFloat(val);
+          if (!isNaN(thresh)) {
+            config.spillThresholdPercent = thresh > 1 ? thresh / 100 : thresh;
+          }
+          break;
+        case "spill-target":
+          const target = parseFloat(val);
+          if (!isNaN(target)) {
+            config.spillTargetPercent = target > 1 ? target / 100 : target;
+          }
+          break;
+        case "spill-disk-path":
+          config.spillDiskPath = val.replace(/^["']|["']$/g, "");
+          break;
       }
+    }
+
+    // Override with environment variables if present
+    if (process.env.SAYODB_SPILL_THRESHOLD) {
+      const val = parseFloat(process.env.SAYODB_SPILL_THRESHOLD);
+      if (!isNaN(val)) config.spillThresholdPercent = val > 1 ? val / 100 : val;
+    }
+    if (process.env.SAYODB_SPILL_TARGET) {
+      const val = parseFloat(process.env.SAYODB_SPILL_TARGET);
+      if (!isNaN(val)) config.spillTargetPercent = val > 1 ? val / 100 : val;
     }
 
     logger.info(`Loaded configuration successfully from ${targetPath}`);

@@ -1,6 +1,7 @@
 import { CommandDefinition, CommandContext } from "./base.js";
 import { RESPEncoder } from "../protocol/encoder.js";
 import { logger } from "../utils/logger.js";
+import { semanticStore, parseVectorInput } from "../engine/vector/index.js";
 
 export class CommandRegistry {
   private commands: Map<string, CommandDefinition> = new Map();
@@ -64,6 +65,39 @@ export class CommandRegistry {
       name: "COMMAND",
       arity: -1,
       handler: () => RESPEncoder.encodeArray([]),
+    });
+
+    // HELP
+    const HELP_TEXT = `========================================================================
+                      sayoDB Command Reference                          
+========================================================================
+  Plain-English Command    Standard Command        Example
+  ---------------------    ----------------        -------
+  STORE / PUT / SAVE       SET                     STORE user "Rahul"
+  FETCH / READ / SHOW      GET                     FETCH user
+  REMOVE / DELETE          DEL                     REMOVE user
+  CHECK / HAS              EXISTS                  CHECK user
+  LIST / FIND              KEYS                    LIST *
+  INCREASE / ADD           INCR                    INCREASE visits
+  DECREASE / SUBTRACT      DECR                    DECREASE visits
+  TIMEOUT                  TTL                     TIMEOUT user
+  WIPE / CLEARALL          FLUSHDB                 WIPE
+  PING                     PING                    PING
+
+  ----------------------------------------------------------------------
+  AI & Semantic Vector Cache Commands
+  ----------------------------------------------------------------------
+  SEMSET       SEMSET <prompt> <resp> EMBEDDING <v1 v2...> [EX sec] [NS ns]
+  SEMGET       SEMGET [THRESHOLD 0.85] [NS ns] EMBEDDING <v1 v2...>
+  SEMSEARCH    SEMSEARCH [LIMIT 5] [THRESHOLD 0.7] EMBEDDING <v1 v2...>
+  SEMDEL       SEMDEL <prompt> [NS ns]
+  SEMFLUSH     SEMFLUSH [NS ns] [TAG tag]
+========================================================================`;
+
+    this.register({
+      name: "HELP",
+      arity: -1,
+      handler: () => RESPEncoder.encodeBulkString(HELP_TEXT),
     });
 
     // INFO
@@ -295,6 +329,9 @@ export class CommandRegistry {
         return this.handleIncrBy(ctx, ctx.args[0], delta);
       },
     });
+
+    // --- SEMANTIC AI & LLM CACHE COMMANDS ---
+    this.registerSemanticCommands();
   }
 
   private handleIncrBy(ctx: CommandContext, key: string, delta: number): Buffer {
@@ -312,6 +349,182 @@ export class CommandRegistry {
     const defaultTtlMs = ctx.client.serverConfig.defaultTtl > 0 ? ctx.client.serverConfig.defaultTtl * 1000 : null;
     ctx.store.set(key, String(num), "string", defaultTtlMs);
     return RESPEncoder.encodeInteger(num);
+  }
+
+  private registerSemanticCommands(): void {
+    // SEMSET prompt response EMBEDDING v1 v2 ... [EX sec] [NS ns] [TAG tag]
+    this.register({
+      name: "SEMSET",
+      arity: -4,
+      isWrite: true,
+      handler: (ctx) => {
+        const prompt = ctx.args[0];
+        const response = ctx.args[1];
+        let embeddingStart = 2;
+
+        if (ctx.args[2] && ctx.args[2].toUpperCase() === "EMBEDDING") {
+          embeddingStart = 3;
+        }
+
+        let ttlMs: number | null = null; // Vector items persist by default unless EX sec is specified
+        let namespace = "default";
+        let tag: string | undefined = undefined;
+
+        const vectorArgs: string[] = [];
+
+        for (let i = embeddingStart; i < ctx.args.length; i++) {
+          const arg = ctx.args[i];
+          const upper = arg.toUpperCase();
+
+          if (upper === "EX" && i + 1 < ctx.args.length) {
+            const sec = parseInt(ctx.args[i + 1], 10);
+            if (!isNaN(sec) && sec > 0) ttlMs = sec * 1000;
+            i++;
+          } else if ((upper === "NS" || upper === "NAMESPACE") && i + 1 < ctx.args.length) {
+            namespace = ctx.args[i + 1];
+            i++;
+          } else if (upper === "TAG" && i + 1 < ctx.args.length) {
+            tag = ctx.args[i + 1];
+            i++;
+          } else {
+            vectorArgs.push(arg);
+          }
+        }
+
+        const rawVec = parseVectorInput(vectorArgs.join(" "));
+        if (rawVec.length === 0) {
+          return RESPEncoder.encodeError("invalid or empty embedding vector");
+        }
+
+        semanticStore.set(prompt, response, rawVec, namespace, tag, ttlMs);
+        return RESPEncoder.OK;
+      },
+    });
+
+    // SEMGET THRESHOLD 0.88 EMBEDDING v1 v2 ...
+    this.register({
+      name: "SEMGET",
+      arity: -2,
+      handler: (ctx) => {
+        let threshold = 0.85;
+        let namespace = "default";
+        let embeddingStart = 0;
+
+        for (let i = 0; i < ctx.args.length; i++) {
+          const upper = ctx.args[i].toUpperCase();
+          if (upper === "THRESHOLD" && i + 1 < ctx.args.length) {
+            const val = parseFloat(ctx.args[i + 1]);
+            if (!isNaN(val)) threshold = val;
+            i++;
+          } else if ((upper === "NS" || upper === "NAMESPACE") && i + 1 < ctx.args.length) {
+            namespace = ctx.args[i + 1];
+            i++;
+          } else if (upper === "EMBEDDING") {
+            embeddingStart = i + 1;
+            break;
+          } else {
+            embeddingStart = i;
+            break;
+          }
+        }
+
+        const vectorArgs = ctx.args.slice(embeddingStart);
+        const rawVec = parseVectorInput(vectorArgs.join(" "));
+        if (rawVec.length === 0) {
+          return RESPEncoder.encodeError("invalid or empty query embedding vector");
+        }
+
+        const matches = semanticStore.searchNearest(rawVec, threshold, namespace, 1);
+        if (matches.length === 0 || !matches[0].hit || !matches[0].item) {
+          return RESPEncoder.NULL_BULK;
+        }
+
+        return RESPEncoder.encodeBulkString(matches[0].item.response);
+      },
+    });
+
+    // SEMSEARCH LIMIT 5 THRESHOLD 0.7 EMBEDDING v1 v2 ...
+    this.register({
+      name: "SEMSEARCH",
+      arity: -2,
+      handler: (ctx) => {
+        let limit = 5;
+        let threshold = 0.7;
+        let namespace = "default";
+        let embeddingStart = 0;
+
+        for (let i = 0; i < ctx.args.length; i++) {
+          const upper = ctx.args[i].toUpperCase();
+          if (upper === "LIMIT" && i + 1 < ctx.args.length) {
+            limit = parseInt(ctx.args[i + 1], 10) || 5;
+            i++;
+          } else if (upper === "THRESHOLD" && i + 1 < ctx.args.length) {
+            threshold = parseFloat(ctx.args[i + 1]) || 0.7;
+            i++;
+          } else if ((upper === "NS" || upper === "NAMESPACE") && i + 1 < ctx.args.length) {
+            namespace = ctx.args[i + 1];
+            i++;
+          } else if (upper === "EMBEDDING") {
+            embeddingStart = i + 1;
+            break;
+          } else {
+            embeddingStart = i;
+            break;
+          }
+        }
+
+        const vectorArgs = ctx.args.slice(embeddingStart);
+        const rawVec = parseVectorInput(vectorArgs.join(" "));
+        const matches = semanticStore.searchNearest(rawVec, threshold, namespace, limit);
+
+        const results: string[] = [];
+        for (const m of matches) {
+          if (m.item) {
+            results.push(`prompt: ${m.item.prompt} | score: ${m.similarity.toFixed(4)} | response: ${m.item.response}`);
+          }
+        }
+        return RESPEncoder.encodeArray(results);
+      },
+    });
+
+    // SEMFLUSH [NS namespace] [TAG tag]
+    this.register({
+      name: "SEMFLUSH",
+      arity: -1,
+      isWrite: true,
+      handler: (ctx) => {
+        let count = 0;
+        if (ctx.args.length === 0) {
+          count = semanticStore.size();
+          semanticStore.flushAll();
+        } else {
+          for (let i = 0; i < ctx.args.length; i += 2) {
+            const upper = ctx.args[i].toUpperCase();
+            const val = ctx.args[i + 1];
+            if (!val) break;
+            if (upper === "NS" || upper === "NAMESPACE") {
+              count += semanticStore.flushNamespace(val);
+            } else if (upper === "TAG") {
+              count += semanticStore.flushTag(val);
+            }
+          }
+        }
+        return RESPEncoder.encodeInteger(count);
+      },
+    });
+
+    // SEMDEL prompt [NS namespace]
+    this.register({
+      name: "SEMDEL",
+      arity: -2,
+      isWrite: true,
+      handler: (ctx) => {
+        const prompt = ctx.args[0];
+        const namespace = ctx.args[2] || "default";
+        const ok = semanticStore.delete(prompt, namespace);
+        return ok ? RESPEncoder.ONE : RESPEncoder.ZERO;
+      },
+    });
   }
 }
 

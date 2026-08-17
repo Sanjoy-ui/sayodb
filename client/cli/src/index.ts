@@ -30,7 +30,9 @@ program
     }
   });
 
-program.parse(process.argv);
+if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
+  program.parse(process.argv);
+}
 
 function buildRESPBuffer(args: string[]): Buffer {
   let respStr = `*${args.length}\r\n`;
@@ -135,10 +137,17 @@ function runRepl(host: string, port: number, rawMode: boolean): void {
   function startPrompt() {
     const promptString = `\x1b[1m\x1b[36msayoDB\x1b[0m \x1b[33m${host}:${port}\x1b[0m\x1b[32m>\x1b[0m `;
 
+    const defaultPrompt = `\x1b[1m\x1b[36msayoDB\x1b[0m \x1b[33m${host}:${port}\x1b[0m\x1b[32m>\x1b[0m `;
+    const continuationPrompt = `\x1b[1m\x1b[36msayoDB\x1b[0m \x1b[33m${host}:${port}\x1b[0m\x1b[33m...\x1b[0m `;
+    let multilineBuffer = "";
+    const commandQueue: string[] = [];
+    let isProcessingQueue = false;
+    let currentResponseResolver: (() => void) | null = null;
+
     rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
-      prompt: promptString,
+      prompt: defaultPrompt,
       completer: cliCompleter,
     });
 
@@ -159,9 +168,56 @@ function runRepl(host: string, port: number, rawMode: boolean): void {
         const res = parser.parseNext();
         if (!res) break;
         process.stdout.write(formatRESPValue(res, rawMode));
+        if (currentResponseResolver) {
+          const resolve = currentResponseResolver;
+          currentResponseResolver = null;
+          resolve();
+        }
       }
-      rl.prompt();
     });
+
+    const processQueue = async () => {
+      if (isProcessingQueue) return;
+      isProcessingQueue = true;
+
+      while (commandQueue.length > 0) {
+        const cmd = commandQueue.shift();
+        if (!cmd) continue;
+
+        const trimmed = cmd.trim();
+        if (!trimmed) continue;
+
+        const lower = trimmed.toLowerCase();
+        if (lower === "exit" || lower === "quit") {
+          socket.destroy();
+          rl.close();
+          process.exit(0);
+          return;
+        }
+
+        if (lower === "clear" || lower === "cls") {
+          console.clear();
+          printBanner(host, port);
+          continue;
+        }
+
+        if (lower === "help") {
+          printHelp();
+          continue;
+        }
+
+        const parts = parseCommandArgs(trimmed);
+        if (parts.length > 0) {
+          await new Promise<void>((resolve) => {
+            currentResponseResolver = resolve;
+            socket.write(buildRESPBuffer(parts));
+          });
+        }
+      }
+
+      isProcessingQueue = false;
+      rl.prompt();
+    };
 
     rl.on("SIGINT", () => {
       console.log("\n\x1b[33mExiting sayoDB CLI...\x1b[0m");
@@ -170,38 +226,138 @@ function runRepl(host: string, port: number, rawMode: boolean): void {
       process.exit(0);
     });
 
+    let pendingPasteTimer: NodeJS.Timeout | null = null;
+
     rl.on("line", (line) => {
-      const input = line.trim();
-      if (!input) {
-        rl.prompt();
-        return;
+      multilineBuffer = multilineBuffer ? `${multilineBuffer}\n${line}` : line;
+
+      if (pendingPasteTimer) {
+        clearTimeout(pendingPasteTimer);
       }
 
-      const lower = input.toLowerCase();
-      if (lower === "exit" || lower === "quit") {
-        socket.destroy();
-        rl.close();
-        process.exit(0);
-        return;
-      }
+      pendingPasteTimer = setTimeout(() => {
+        pendingPasteTimer = null;
 
-      if (lower === "clear" || lower === "cls") {
-        console.clear();
-        printBanner(host, port);
-        rl.prompt();
-        return;
-      }
+        const bufferToProcess = multilineBuffer;
+        if (!bufferToProcess.trim()) return;
 
-      if (lower === "help") {
-        printHelp();
-        rl.prompt();
-        return;
-      }
+        // If quotes are still unclosed, show continuation prompt and keep buffering
+        if (hasUnclosedQuotes(bufferToProcess)) {
+          rl.setPrompt(continuationPrompt);
+          rl.prompt();
+          return;
+        }
 
-      const parts = parseCommandArgs(input);
-      socket.write(buildRESPBuffer(parts));
+        multilineBuffer = "";
+        rl.setPrompt(defaultPrompt);
+
+        const batchCommands = splitBatchCommands(bufferToProcess);
+        for (const c of batchCommands) {
+          if (c.trim()) {
+            commandQueue.push(c);
+          }
+        }
+
+        processQueue();
+      }, 15);
     });
   }
+}
+
+export function hasUnclosedQuotes(input: string): boolean {
+  let inQuotes = false;
+  let quoteChar = "";
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+
+    if (inQuotes) {
+      if (char === quoteChar) {
+        inQuotes = false;
+        quoteChar = "";
+      } else if (char === "\\" && i + 1 < input.length) {
+        i++;
+      }
+    } else {
+      if (char === '"' || char === "'") {
+        inQuotes = true;
+        quoteChar = char;
+      }
+    }
+  }
+
+  return inQuotes;
+}
+
+export function splitBatchCommands(input: string): string[] {
+  const lines = input.split(/\r?\n/);
+  const commands: string[] = [];
+  let currentAccumulator = "";
+
+  const commandKeywords = new Set(CLI_COMMANDS.map((c) => c.toUpperCase()));
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    if (!currentAccumulator) {
+      currentAccumulator = line;
+    } else {
+      const firstWord = (line.split(/\s+/)[0] || "").replace(/^["']/, "").toUpperCase();
+      const isNewCommand = commandKeywords.has(firstWord);
+
+      if (isNewCommand && !hasUnclosedQuotes(currentAccumulator)) {
+        commands.push(currentAccumulator.trim());
+        currentAccumulator = line;
+      } else {
+        currentAccumulator += " " + line;
+      }
+    }
+  }
+
+  if (currentAccumulator.trim()) {
+    const subCmds = splitBySemicolon(currentAccumulator.trim());
+    for (const sc of subCmds) {
+      if (sc.trim()) commands.push(sc.trim());
+    }
+  }
+
+  return commands;
+}
+
+function splitBySemicolon(input: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  let quoteChar = "";
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    if (inQuotes) {
+      current += char;
+      if (char === quoteChar) {
+        inQuotes = false;
+        quoteChar = "";
+      } else if (char === "\\" && i + 1 < input.length) {
+        i++;
+        current += input[i];
+      }
+    } else {
+      if (char === '"' || char === "'") {
+        inQuotes = true;
+        quoteChar = char;
+        current += char;
+      } else if (char === ";") {
+        if (current.trim()) result.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+  }
+
+  if (current.trim()) result.push(current.trim());
+  return result;
 }
 
 export function parseCommandArgs(input: string): string[] {
@@ -274,6 +430,11 @@ export const CLI_COMMANDS = [
   "WIPE",
   "CLEARALL",
   "FLUSHDB",
+  "SEMSET",
+  "SEMGET",
+  "SEMSEARCH",
+  "SEMFLUSH",
+  "SEMDEL",
   "PING",
   "HELP",
   "CLEAR",
@@ -306,6 +467,7 @@ function printHelp(): void {
     yellow: "\x1b[33m",
     green: "\x1b[32m",
     gray: "\x1b[90m",
+    magenta: "\x1b[35m",
   };
 
   console.log(`
@@ -324,7 +486,16 @@ ${c.bold}${c.cyan}==============================================================
   TIMEOUT                  TTL                     TIMEOUT user
   WIPE / CLEARALL          FLUSHDB                 WIPE
   PING                     PING                    PING
+
+  ${c.bold}${c.magenta}----------------------------------------------------------------------${c.reset}
+  ${c.bold}${c.magenta}AI & Semantic Vector Cache Commands${c.reset}
+  ${c.bold}${c.magenta}----------------------------------------------------------------------${c.reset}
+  ${c.bold}${c.green}SEMSET${c.reset}       SEMSET <prompt> <resp> EMBEDDING <v1 v2...> [EX sec] [NS ns]
+  ${c.bold}${c.green}SEMGET${c.reset}       SEMGET [THRESHOLD 0.85] [NS ns] EMBEDDING <v1 v2...>
+  ${c.bold}${c.green}SEMSEARCH${c.reset}    SEMSEARCH [LIMIT 5] [THRESHOLD 0.7] EMBEDDING <v1 v2...>
+  ${c.bold}${c.green}SEMDEL${c.reset}       SEMDEL <prompt> [NS ns]
+  ${c.bold}${c.green}SEMFLUSH${c.reset}     SEMFLUSH [NS ns] [TAG tag]
 ${c.bold}${c.cyan}========================================================================${c.reset}
-  ${c.gray}Note: Keys created without explicit TTL automatically inherit the default 60s expiration.${c.reset}
+  ${c.gray}Note: Keys created without explicit TTL automatically inherit default 60s expiration.${c.reset}
 `);
 }

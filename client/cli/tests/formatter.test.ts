@@ -55,7 +55,7 @@ describe("CLI RESP Formatter", () => {
   });
 });
 
-import { parseCommandArgs, cliCompleter } from "../src/index.js";
+import { parseCommandArgs, cliCompleter, hasUnclosedQuotes, splitBatchCommands } from "../src/index.js";
 
 describe("CLI Argument Tokenizer", () => {
   it("parses unquoted arguments", () => {
@@ -68,6 +68,24 @@ describe("CLI Argument Tokenizer", () => {
 
   it("handles spaces inside quotes", () => {
     expect(parseCommandArgs('STORE msg "Hello World"')).toEqual(["STORE", "msg", "Hello World"]);
+  });
+});
+
+describe("CLI Multiline & Batch Paste Helper", () => {
+  it("detects unclosed quotes correctly", () => {
+    expect(hasUnclosedQuotes('SEMSET "Redis Overview')).toBe(true);
+    expect(hasUnclosedQuotes('SEMSET "Redis Overview" "Redis is RAM"')).toBe(false);
+  });
+
+  it("splits pasted batch commands by newline or semicolon without breaking quotes", () => {
+    const pastedBlock = `SEMSET "Redis Overview" "Redis is RAM" EMBEDDING 0.3 -0.1 NS tech
+SEMSET "Postgres Indexing" "B-Tree indexes" EMBEDDING 0.1 0.4 NS tech; PING`;
+
+    const split = splitBatchCommands(pastedBlock);
+    expect(split).toHaveLength(3);
+    expect(split[0]).toContain("Redis Overview");
+    expect(split[1]).toContain("Postgres Indexing");
+    expect(split[2]).toBe("PING");
   });
 });
 

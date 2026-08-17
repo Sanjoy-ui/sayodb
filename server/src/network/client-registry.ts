@@ -19,6 +19,10 @@ export class ClientRegistry {
   public activeCount(): number {
     return this.clients.size;
   }
+
+  public size(): number {
+    return this.clients.size;
+  }
 }
 
 export const clientRegistry = new ClientRegistry();

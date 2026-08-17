@@ -178,6 +178,106 @@ export class SayoDBClient {
     return this.sendCommand(args);
   }
 
+  // --- Semantic AI & LLM Vector Cache Methods ---
+
+  public async semset(
+    prompt: string,
+    response: string,
+    vector: Float32Array | number[] | string,
+    options?: { ttlSeconds?: number; namespace?: string; tag?: string }
+  ): Promise<string> {
+    const args = ["SEMSET", prompt, response, "EMBEDDING"];
+    if (typeof vector === "string") {
+      args.push(vector);
+    } else if (vector instanceof Float32Array || Array.isArray(vector)) {
+      for (let i = 0; i < vector.length; i++) {
+        args.push(String(vector[i]));
+      }
+    }
+
+    if (options?.ttlSeconds !== undefined) {
+      args.push("EX", String(options.ttlSeconds));
+    }
+    if (options?.namespace) {
+      args.push("NS", options.namespace);
+    }
+    if (options?.tag) {
+      args.push("TAG", options.tag);
+    }
+
+    return this.sendCommand(args);
+  }
+
+  public async semget(
+    vector: Float32Array | number[] | string,
+    options?: { threshold?: number; namespace?: string }
+  ): Promise<string | null> {
+    const args: string[] = ["SEMGET"];
+    if (options?.threshold !== undefined) {
+      args.push("THRESHOLD", String(options.threshold));
+    }
+    if (options?.namespace) {
+      args.push("NS", options.namespace);
+    }
+
+    args.push("EMBEDDING");
+    if (typeof vector === "string") {
+      args.push(vector);
+    } else if (vector instanceof Float32Array || Array.isArray(vector)) {
+      for (let i = 0; i < vector.length; i++) {
+        args.push(String(vector[i]));
+      }
+    }
+
+    return this.sendCommand(args);
+  }
+
+  public async semsearch(
+    vector: Float32Array | number[] | string,
+    options?: { limit?: number; threshold?: number; namespace?: string }
+  ): Promise<string[]> {
+    const args: string[] = ["SEMSEARCH"];
+    if (options?.limit !== undefined) {
+      args.push("LIMIT", String(options.limit));
+    }
+    if (options?.threshold !== undefined) {
+      args.push("THRESHOLD", String(options.threshold));
+    }
+    if (options?.namespace) {
+      args.push("NS", options.namespace);
+    }
+
+    args.push("EMBEDDING");
+    if (typeof vector === "string") {
+      args.push(vector);
+    } else if (vector instanceof Float32Array || Array.isArray(vector)) {
+      for (let i = 0; i < vector.length; i++) {
+        args.push(String(vector[i]));
+      }
+    }
+
+    return this.sendCommand(args);
+  }
+
+  public async semflush(options?: { namespace?: string; tag?: string }): Promise<number> {
+    const args = ["SEMFLUSH"];
+    if (options?.namespace) {
+      args.push("NS", options.namespace);
+    }
+    if (options?.tag) {
+      args.push("TAG", options.tag);
+    }
+    return this.sendCommand(args);
+  }
+
+  public async semdel(prompt: string, namespace?: string): Promise<number> {
+    const args = ["SEMDEL", prompt];
+    if (namespace) {
+      args.push("NS", namespace);
+    }
+    return this.sendCommand(args);
+  }
+
   // --- Internal RESP Protocol Serialization & Parsing ---
 
   private encodeRESP(args: string[]): Buffer {
