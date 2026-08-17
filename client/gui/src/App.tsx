@@ -82,6 +82,9 @@ const ALL_COMMAND_SUGGESTIONS = [
   { cmd: "SEMSEARCH", type: "Vector Engine", desc: "SEMSEARCH [LIMIT 5] EMBEDDING <v1 v2...>" },
   { cmd: "SEMDEL", type: "Vector Engine", desc: "SEMDEL <prompt>" },
   { cmd: "SEMFLUSH", type: "Vector Engine", desc: "SEMFLUSH [NS ns]" },
+  { cmd: "SCHEMA", type: "JSON Engine", desc: "SCHEMA SET <name> <def_json> | SCHEMA GET | DEL | LIST" },
+  { cmd: "SETJSON", type: "JSON Engine", desc: "SETJSON <key> [SCHEMA schema_name] <payload_json>" },
+  { cmd: "GETJSON", type: "JSON Engine", desc: "GETJSON <key>" },
 ];
 
 export default function App() {
@@ -102,20 +105,57 @@ export default function App() {
 
   // Filter suggestions when inputCmd changes
   useEffect(() => {
-    const trimmed = inputCmd.trimStart();
-    if (!trimmed || trimmed.includes(" ")) {
+    const trimmedLeft = inputCmd.trimStart();
+    const endsWithSpace = inputCmd.endsWith(" ");
+    const parts = trimmedLeft.split(/\s+/).filter(Boolean);
+
+    if (parts.length === 0) {
       setSuggestions([]);
       setShowSuggestions(false);
       return;
     }
 
-    const matches = ALL_COMMAND_SUGGESTIONS.filter((s) =>
-      s.cmd.toLowerCase().startsWith(trimmed.toLowerCase())
-    );
+    if (parts.length === 1 && !endsWithSpace) {
+      const matches = ALL_COMMAND_SUGGESTIONS.filter((s) =>
+        s.cmd.toLowerCase().startsWith(parts[0].toLowerCase())
+      );
+      setSuggestions(matches);
+      setHighlightIdx(0);
+      setShowSuggestions(matches.length > 0);
+      return;
+    }
 
-    setSuggestions(matches);
-    setHighlightIdx(0);
-    setShowSuggestions(matches.length > 0);
+    // Sub-command suggestions (e.g. SCHEMA SET / GET / DEL / LIST or SETJSON SCHEMA)
+    const firstCmd = parts[0].toUpperCase();
+    if (firstCmd === "SCHEMA" && (parts.length === 1 || (parts.length === 2 && !endsWithSpace))) {
+      const token = parts[1] || "";
+      const subList = [
+        { cmd: "SCHEMA SET", type: "JSON Engine", desc: "SCHEMA SET <name> <def_json>" },
+        { cmd: "SCHEMA GET", type: "JSON Engine", desc: "SCHEMA GET <name>" },
+        { cmd: "SCHEMA DEL", type: "JSON Engine", desc: "SCHEMA DEL <name>" },
+        { cmd: "SCHEMA LIST", type: "JSON Engine", desc: "SCHEMA LIST" },
+      ].filter((s) => s.cmd.toLowerCase().startsWith(`schema ${token}`.toLowerCase()));
+
+      setSuggestions(subList);
+      setHighlightIdx(0);
+      setShowSuggestions(subList.length > 0);
+      return;
+    }
+
+    if (firstCmd === "SETJSON" && (parts.length === 1 || (parts.length === 2 && !endsWithSpace))) {
+      const token = parts[1] || "";
+      const subList = [
+        { cmd: "SETJSON", type: "JSON Engine", desc: "SETJSON <key> SCHEMA <schema_name> <payload>" },
+      ].filter((s) => s.cmd.toLowerCase().startsWith(`setjson ${token}`.toLowerCase()));
+
+      setSuggestions(subList);
+      setHighlightIdx(0);
+      setShowSuggestions(subList.length > 0);
+      return;
+    }
+
+    setSuggestions([]);
+    setShowSuggestions(false);
   }, [inputCmd]);
 
   // Vector Engine & Split Screen View States

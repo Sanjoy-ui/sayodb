@@ -3,3 +3,4 @@ packages:
   - 'server'
 allowBuilds:
   esbuild: true
+  unrs-resolver: true

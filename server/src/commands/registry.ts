@@ -2,6 +2,7 @@ import { CommandDefinition, CommandContext } from "./base.js";
 import { RESPEncoder } from "../protocol/encoder.js";
 import { logger } from "../utils/logger.js";
 import { semanticStore, parseVectorInput } from "../engine/vector/index.js";
+import { schemaRegistry } from "../engine/schema/index.js";
 
 export class CommandRegistry {
   private commands: Map<string, CommandDefinition> = new Map();
@@ -92,6 +93,13 @@ export class CommandRegistry {
   SEMSEARCH    SEMSEARCH [LIMIT 5] [THRESHOLD 0.7] EMBEDDING <v1 v2...>
   SEMDEL       SEMDEL <prompt> [NS ns]
   SEMFLUSH     SEMFLUSH [NS ns] [TAG tag]
+
+  ----------------------------------------------------------------------
+  Engine-Level JSON Schema Validation Commands
+  ----------------------------------------------------------------------
+  SCHEMA       SCHEMA SET <name> <def_json> | GET <name> | DEL <name> | LIST
+  SETJSON      SETJSON <key> [SCHEMA schema_name] <payload_json>
+  GETJSON      GETJSON <key>
 ========================================================================`;
 
     this.register({
@@ -523,6 +531,97 @@ export class CommandRegistry {
         const namespace = ctx.args[2] || "default";
         const ok = semanticStore.delete(prompt, namespace);
         return ok ? RESPEncoder.ONE : RESPEncoder.ZERO;
+      },
+    });
+
+    // SCHEMA SET/GET/DEL/LIST
+    this.register({
+      name: "SCHEMA",
+      arity: -2,
+      isWrite: true,
+      handler: (ctx) => {
+        const subCmd = ctx.args[0].toUpperCase();
+        if (subCmd === "SET") {
+          if (ctx.args.length < 3) {
+            return RESPEncoder.encodeError("wrong number of arguments for 'SCHEMA SET' command", "ERR");
+          }
+          const name = ctx.args[1];
+          const definition = ctx.args[2];
+          schemaRegistry.setSchema(name, definition);
+          return RESPEncoder.OK;
+        }
+
+        if (subCmd === "GET") {
+          if (ctx.args.length < 2) {
+            return RESPEncoder.encodeError("wrong number of arguments for 'SCHEMA GET' command", "ERR");
+          }
+          const name = ctx.args[1];
+          const schema = schemaRegistry.getSchema(name);
+          if (!schema) return RESPEncoder.NULL_BULK;
+          return RESPEncoder.encodeBulkString(JSON.stringify(schema.fields));
+        }
+
+        if (subCmd === "DEL" || subCmd === "DELETE") {
+          if (ctx.args.length < 2) {
+            return RESPEncoder.encodeError("wrong number of arguments for 'SCHEMA DEL' command", "ERR");
+          }
+          const name = ctx.args[1];
+          const deleted = schemaRegistry.deleteSchema(name);
+          return RESPEncoder.encodeInteger(deleted ? 1 : 0);
+        }
+
+        if (subCmd === "LIST") {
+          return RESPEncoder.encodeArray(schemaRegistry.listSchemas());
+        }
+
+        return RESPEncoder.encodeError(`unknown sub-command '${subCmd}' for SCHEMA`, "ERR");
+      },
+    });
+
+    // SETJSON key [SCHEMA schema_name] <payload_json>
+    this.register({
+      name: "SETJSON",
+      arity: -3,
+      isWrite: true,
+      handler: (ctx) => {
+        const key = ctx.args[0];
+
+        if (ctx.args[1].toUpperCase() === "SCHEMA") {
+          if (ctx.args.length < 4) {
+            return RESPEncoder.encodeError("wrong number of arguments for 'SETJSON SCHEMA' command", "ERR");
+          }
+          const schemaName = ctx.args[2];
+          const payloadStr = ctx.args.slice(3).join(" ");
+
+          const result = schemaRegistry.validatePayload(schemaName, payloadStr);
+          if (!result.valid) {
+            return RESPEncoder.encodeError(result.error || "SchemaValidationError", "ERR");
+          }
+
+          ctx.store.set(key, payloadStr, "string");
+          return RESPEncoder.OK;
+        }
+
+        const payloadStr = ctx.args.slice(1).join(" ");
+        try {
+          JSON.parse(payloadStr);
+        } catch {
+          return RESPEncoder.encodeError("SchemaValidationError: Invalid JSON syntax payload", "ERR");
+        }
+
+        ctx.store.set(key, payloadStr, "string");
+        return RESPEncoder.OK;
+      },
+    });
+
+    // GETJSON key
+    this.register({
+      name: "GETJSON",
+      arity: 2,
+      handler: (ctx) => {
+        const val = ctx.store.get(ctx.args[0]);
+        if (val === null || val === undefined) return RESPEncoder.NULL_BULK;
+        return RESPEncoder.encodeBulkString(String(val));
       },
     });
   }

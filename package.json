@@ -8,10 +8,12 @@
     "dev:server": "pnpm --filter sayodb-server dev",
     "dev:cli": "pnpm --filter sayodb-cli dev",
     "dev:gui": "pnpm --filter sayodb-gui dev",
+    "dev:web": "pnpm --filter sayodb-web dev",
     "sayodb": "pnpm --filter sayodb-cli dev",
     "cli": "pnpm --filter sayodb-cli dev",
     "server": "pnpm --filter sayodb-server dev",
     "gui": "pnpm --filter sayodb-gui dev",
+    "web": "pnpm --filter sayodb-web dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"

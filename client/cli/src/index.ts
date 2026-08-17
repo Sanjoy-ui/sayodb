@@ -435,6 +435,9 @@ export const CLI_COMMANDS = [
   "SEMSEARCH",
   "SEMFLUSH",
   "SEMDEL",
+  "SCHEMA",
+  "SETJSON",
+  "GETJSON",
   "PING",
   "HELP",
   "CLEAR",
@@ -443,17 +446,37 @@ export const CLI_COMMANDS = [
   "QUIT",
 ];
 
-export function cliCompleter(line: string): [string[], string] {
-  const trimmed = line.trimStart();
-  const parts = trimmed.split(/\s+/);
+const SUBCOMMAND_MAP: Record<string, string[]> = {
+  SCHEMA: ["SET", "GET", "DEL", "LIST"],
+  SETJSON: ["SCHEMA"],
+  SEMSET: ["EMBEDDING", "EX", "NS"],
+  SEMGET: ["EMBEDDING", "THRESHOLD", "NS"],
+  SEMSEARCH: ["EMBEDDING", "LIMIT", "THRESHOLD", "NS"],
+};
 
-  if (parts.length <= 1) {
+export function cliCompleter(line: string): [string[], string] {
+  const trimmedLeft = line.trimStart();
+  const endsWithSpace = line.endsWith(" ");
+  const parts = trimmedLeft.split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0 || (parts.length === 1 && !endsWithSpace)) {
     const currentToken = parts[0] || "";
     const hits = CLI_COMMANDS.filter((cmd) =>
       cmd.toLowerCase().startsWith(currentToken.toLowerCase())
     );
+    return [hits, currentToken];
+  }
 
-    return [hits.length ? hits : CLI_COMMANDS, currentToken];
+  // Handle subcommands (e.g. SCHEMA SET, SETJSON SCHEMA)
+  const firstCmd = parts[0].toUpperCase();
+  const subCommands = SUBCOMMAND_MAP[firstCmd];
+
+  if (subCommands) {
+    const currentToken = endsWithSpace ? "" : parts[parts.length - 1] || "";
+    const hits = subCommands.filter((sub) =>
+      sub.toLowerCase().startsWith(currentToken.toLowerCase())
+    );
+    return [hits, currentToken];
   }
 
   return [[], parts[parts.length - 1] || ""];
@@ -495,6 +518,13 @@ ${c.bold}${c.cyan}==============================================================
   ${c.bold}${c.green}SEMSEARCH${c.reset}    SEMSEARCH [LIMIT 5] [THRESHOLD 0.7] EMBEDDING <v1 v2...>
   ${c.bold}${c.green}SEMDEL${c.reset}       SEMDEL <prompt> [NS ns]
   ${c.bold}${c.green}SEMFLUSH${c.reset}     SEMFLUSH [NS ns] [TAG tag]
+
+  ${c.bold}${c.magenta}----------------------------------------------------------------------${c.reset}
+  ${c.bold}${c.magenta}Engine-Level JSON Schema Validation Commands${c.reset}
+  ${c.bold}${c.magenta}----------------------------------------------------------------------${c.reset}
+  ${c.bold}${c.green}SCHEMA${c.reset}       SCHEMA SET <name> <def_json> | GET <name> | DEL <name> | LIST
+  ${c.bold}${c.green}SETJSON${c.reset}      SETJSON <key> [SCHEMA schema_name] <payload_json>
+  ${c.bold}${c.green}GETJSON${c.reset}      GETJSON <key>
 ${c.bold}${c.cyan}========================================================================${c.reset}
   ${c.gray}Note: Keys created without explicit TTL automatically inherit default 60s expiration.${c.reset}
 `);
