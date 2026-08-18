@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import ThemeToggle from "../../components/ThemeToggle";
 import Footer from "../../components/Footer";
@@ -33,6 +33,16 @@ export default function DocumentationPage() {
   const [activeCategory, setActiveCategory] = useState<string>("quickstart");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedSnippet, setCopiedSnippet] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const cat = params.get("category");
+      if (cat) {
+        setActiveCategory(cat);
+      }
+    }
+  }, []);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -299,23 +309,23 @@ volumes:
                 </div>
               </div>
 
-              {/* 3. Embedded CLI & Zero-Installation */}
+              {/* 3. Embedded CLI & Package Setup */}
               <div className="glass-card container-padding" style={{ padding: "20px" }}>
                 <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "10px", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "8px" }}>
                   <Terminal size={18} style={{ color: "var(--accent-indigo)" }} />
-                  <span>3. Connect via Zero-Installation CLI (`npx sayodb`)</span>
+                  <span>3. Connect via SDK (`@sayodb/client`) or CLI (`sayodb`)</span>
                 </h3>
                 <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "10px", lineHeight: 1.5 }}>
-                  Launch the interactive sayoDB terminal REPL instantly without installing any packages globally or locally:
+                  Choose between the lightweight client driver for application code or the full CLI package for interactive terminal debugging:
                 </p>
                 <div className="code-font" style={{ background: "#08090A", padding: "12px 14px", borderRadius: "8px", border: "1px solid #1F242D", fontSize: "0.8rem", color: "#93C5FD", display: "flex", justifyContent: "space-between", alignItems: "center", overflowX: "auto", marginBottom: "10px" }}>
-                  <span style={{ whiteSpace: "nowrap" }}>npx sayodb -h 127.0.0.1 -p 6380</span>
-                  <button onClick={() => handleCopy("npx sayodb -h 127.0.0.1 -p 6380", "npx_run")} style={{ background: "transparent", border: "none", color: "#8B92A0", cursor: "pointer", marginLeft: "10px" }}>
-                    {copiedSnippet === "npx_run" ? <Check size={14} style={{ color: "#34D399" }} /> : <Copy size={14} />}
+                  <span style={{ whiteSpace: "nowrap" }}>npm install @sayodb/client</span>
+                  <button onClick={() => handleCopy("npm install @sayodb/client", "sdk_inst_qs")} style={{ background: "transparent", border: "none", color: "#8B92A0", cursor: "pointer", marginLeft: "10px" }}>
+                    {copiedSnippet === "sdk_inst_qs" ? <Check size={14} style={{ color: "#34D399" }} /> : <Copy size={14} />}
                   </button>
                 </div>
                 <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                  Or run inside Docker container: <code className="code-font" style={{ color: "var(--accent-indigo)" }}>docker exec -it sayodb sayodb-cli</code>
+                  Or run terminal CLI via Docker: <code className="code-font" style={{ color: "var(--accent-indigo)" }}>docker exec -it sayodb sayodb-cli</code>
                 </div>
               </div>
             </div>
@@ -323,43 +333,141 @@ volumes:
 
           {activeCategory === "installation" && (
             <div>
-              <div style={{ fontSize: "0.8rem", color: "var(--accent-indigo)", fontWeight: 600, marginBottom: "6px" }}>CLI &amp; PACKAGE MANAGERS</div>
-              <h1 className="docs-h1" style={{ color: "var(--text-main)" }}>Installation &amp; CLI Guide</h1>
+              <div style={{ fontSize: "0.8rem", color: "var(--accent-indigo)", fontWeight: 600, marginBottom: "6px" }}>PACKAGE SELECTION &amp; CLI GUIDE</div>
+              <h1 className="docs-h1" style={{ color: "var(--text-main)" }}>Installation &amp; Setup Guide</h1>
               <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", lineHeight: 1.6, marginBottom: "24px" }}>
-                The sayoDB CLI tool (<code style={{ color: "var(--accent-indigo)" }}>sayodb</code>) provides an interactive terminal REPL and single-command execution interface.
+                sayoDB provides two distinct packages on the npm registry tailored for different developer workflows. Select the package that fits your architecture:
               </p>
 
-              <div className="glass-card container-padding" style={{ padding: "20px", marginBottom: "20px" }}>
-                <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "10px", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "8px" }}>
-                  <Zap size={18} style={{ color: "var(--accent-mint)" }} />
-                  <span>Zero-Installation Quickstart (No Local or Global Installation)</span>
-                </h3>
-                <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", marginBottom: "12px", lineHeight: 1.6 }}>
-                  <code className="code-font" style={{ color: "var(--accent-indigo)" }}>npx sayodb</code> downloads and executes the latest published CLI binary directly from NPM on demand. It runs the interactive REPL without modifying your local <code className="code-font" style={{ color: "var(--accent-indigo)" }}>package.json</code> or project directory.
-                </p>
-                <div className="code-font" style={{ background: "#08090A", padding: "14px", borderRadius: "8px", border: "1px solid #1F242D", fontSize: "0.8rem", color: "#F4F4F6", lineHeight: 1.6 }}>
-                  <div><span style={{ color: "#4B5363" }}># npm / npx</span></div>
-                  <div style={{ color: "#93C5FD" }}>npx sayodb</div>
-                  <div style={{ marginTop: "8px" }}><span style={{ color: "#4B5363" }}># pnpm</span></div>
-                  <div style={{ color: "#93C5FD" }}>pnpm dlx sayodb</div>
-                  <div style={{ marginTop: "8px" }}><span style={{ color: "#4B5363" }}># bun</span></div>
-                  <div style={{ color: "#93C5FD" }}>bunx sayodb</div>
-                  <div style={{ marginTop: "8px" }}><span style={{ color: "#4B5363" }}># yarn</span></div>
-                  <div style={{ color: "#93C5FD" }}>yarn dlx sayodb</div>
+              {/* Package Comparison Cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "28px" }}>
+                <div className="glass-card container-padding" style={{ padding: "22px", borderTop: "3px solid var(--accent-mint)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                    <Cpu size={20} style={{ color: "var(--accent-mint)" }} />
+                    <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--text-main)" }}>@sayodb/client</h3>
+                  </div>
+                  <div style={{ fontSize: "0.78rem", padding: "3px 8px", borderRadius: "4px", background: "rgba(52, 211, 153, 0.12)", color: "var(--accent-mint)", display: "inline-block", fontWeight: 600, marginBottom: "12px" }}>
+                    STANDALONE CLIENT SDK (RECOMMENDED FOR APPS)
+                  </div>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.86rem", lineHeight: 1.6, marginBottom: "14px" }}>
+                    Lightweight programmatic driver designed specifically for backend web applications, microservices, and serverless deployments.
+                  </p>
+                  <ul style={{ color: "var(--text-muted)", fontSize: "0.84rem", paddingLeft: "18px", margin: 0, lineHeight: 1.7 }}>
+                    <li>Zero CLI binary overhead &amp; fast cold-starts.</li>
+                    <li>Full RESP parser, connection pooling, and reconnect logic.</li>
+                    <li>Built-in Schema &amp; Model ODM layer for document validation.</li>
+                    <li>Native Float32 Cosine Similarity vector search (<code className="code-font" style={{ color: "var(--accent-mint)" }}>semsearch</code>).</li>
+                  </ul>
+                </div>
+
+                <div className="glass-card container-padding" style={{ padding: "22px", borderTop: "3px solid var(--accent-indigo)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                    <Terminal size={20} style={{ color: "var(--accent-indigo)" }} />
+                    <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--text-main)" }}>sayodb</h3>
+                  </div>
+                  <div style={{ fontSize: "0.78rem", padding: "3px 8px", borderRadius: "4px", background: "rgba(94, 106, 210, 0.12)", color: "var(--accent-indigo)", display: "inline-block", fontWeight: 600, marginBottom: "12px" }}>
+                    ALL-IN-ONE CLI &amp; DRIVER BUNDLE
+                  </div>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.86rem", lineHeight: 1.6, marginBottom: "14px" }}>
+                    Complete developer suite containing the interactive terminal REPL client tool alongside the re-exported client SDK.
+                  </p>
+                  <ul style={{ color: "var(--text-muted)", fontSize: "0.84rem", paddingLeft: "18px", margin: 0, lineHeight: 1.7 }}>
+                    <li>Interactive terminal REPL with tab-autocompletion &amp; syntax formatting.</li>
+                    <li>Connect to local, Docker, or remote sayoDB servers.</li>
+                    <li>Execute database commands directly from terminal prompts.</li>
+                    <li>Re-exports <code className="code-font" style={{ color: "var(--accent-indigo)" }}>@sayodb/client</code> for single-install convenience.</li>
+                  </ul>
                 </div>
               </div>
 
-              <div className="glass-card container-padding" style={{ padding: "20px" }}>
-                <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "10px", color: "var(--text-main)" }}>Global Terminal Installation</h3>
-                <div className="code-font" style={{ background: "#08090A", padding: "14px", borderRadius: "8px", border: "1px solid #1F242D", fontSize: "0.78rem", color: "#F4F4F6", lineHeight: 1.6 }}>
+              {/* 1. Installing @sayodb/client */}
+              <div className="glass-card container-padding" style={{ padding: "22px", marginBottom: "24px" }}>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "10px", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Zap size={18} style={{ color: "var(--accent-mint)" }} />
+                  <span>1. Installing @sayodb/client (Production Backend App Driver)</span>
+                </h3>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", marginBottom: "14px", lineHeight: 1.6 }}>
+                  Install <code className="code-font" style={{ color: "var(--accent-mint)" }}>@sayodb/client</code> if you are building an Express, Fastify, Next.js, NestJS, or Node.js backend application and only require programmatic database connections:
+                </p>
+                <div className="code-font" style={{ background: "#08090A", padding: "14px", borderRadius: "8px", border: "1px solid #1F242D", fontSize: "0.8rem", color: "#F4F4F6", lineHeight: 1.6 }}>
                   <div><span style={{ color: "#4B5363" }}># npm</span></div>
-                  <div>npm install -g sayodb</div>
-                  <div style={{ marginTop: "6px" }}><span style={{ color: "#4B5363" }}># pnpm</span></div>
-                  <div>pnpm add -g sayodb</div>
-                  <div style={{ marginTop: "6px" }}><span style={{ color: "#4B5363" }}># yarn</span></div>
-                  <div>yarn global add sayodb</div>
-                  <div style={{ marginTop: "6px" }}><span style={{ color: "#4B5363" }}># bun</span></div>
-                  <div>bun add -g sayodb</div>
+                  <div style={{ color: "#93C5FD" }}>npm install @sayodb/client</div>
+                  <div style={{ marginTop: "8px" }}><span style={{ color: "#4B5363" }}># pnpm</span></div>
+                  <div style={{ color: "#93C5FD" }}>pnpm add @sayodb/client</div>
+                  <div style={{ marginTop: "8px" }}><span style={{ color: "#4B5363" }}># bun</span></div>
+                  <div style={{ color: "#93C5FD" }}>bun add @sayodb/client</div>
+                  <div style={{ marginTop: "8px" }}><span style={{ color: "#4B5363" }}># yarn</span></div>
+                  <div style={{ color: "#93C5FD" }}>yarn add @sayodb/client</div>
+                </div>
+              </div>
+
+              {/* 2. Installing sayodb (CLI & All-in-One) */}
+              <div className="glass-card container-padding" style={{ padding: "22px", marginBottom: "24px" }}>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "10px", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "10px" }}>
+                  <Terminal size={18} style={{ color: "var(--accent-indigo)" }} />
+                  <span>2. Installing sayodb (Terminal CLI &amp; All-in-One Package)</span>
+                </h3>
+
+                {/* Docker vs Non-Docker Callout */}
+                <div style={{ background: "rgba(94, 106, 210, 0.08)", border: "1px solid rgba(94, 106, 210, 0.25)", borderRadius: "8px", padding: "14px 16px", marginBottom: "16px" }}>
+                  <div style={{ fontWeight: 600, fontSize: "0.88rem", color: "var(--accent-indigo)", marginBottom: "6px" }}>
+                    💡 Docker Users vs Standalone / Local Learners:
+                  </div>
+                  <p style={{ fontSize: "0.84rem", color: "var(--text-muted)", margin: 0, lineHeight: 1.6 }}>
+                    • <strong>Already using Docker?</strong> The official Docker image (<code className="code-font" style={{ color: "var(--accent-indigo)" }}>sanjoydb/sayodb-server</code>) has the terminal CLI pre-installed inside (<code className="code-font" style={{ color: "var(--accent-indigo)" }}>docker exec -it sayodb sayodb-cli</code>). However, installing <code className="code-font" style={{ color: "var(--accent-indigo)" }}>sayodb</code> locally via npm allows you to execute commands against your Docker server directly from your host terminal prompt.<br />
+                    • <strong>Non-Docker / Native Setup:</strong> Installing <code className="code-font" style={{ color: "var(--accent-indigo)" }}>sayodb</code> gives you the interactive REPL client and single-command execution interface natively on your OS.
+                  </p>
+                </div>
+
+                <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", marginBottom: "12px", lineHeight: 1.6 }}>
+                  Install locally in your project repository or globally on your system:
+                </p>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "14px" }}>
+                  <div>
+                    <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)", marginBottom: "6px" }}>Local Project Install</div>
+                    <div className="code-font" style={{ background: "#08090A", padding: "12px", borderRadius: "8px", border: "1px solid #1F242D", fontSize: "0.78rem", color: "#F4F4F6", lineHeight: 1.6 }}>
+                      <div><span style={{ color: "#4B5363" }}># npm</span></div>
+                      <div style={{ color: "#93C5FD" }}>npm i sayodb</div>
+                      <div style={{ marginTop: "6px" }}><span style={{ color: "#4B5363" }}># pnpm</span></div>
+                      <div style={{ color: "#93C5FD" }}>pnpm add sayodb</div>
+                      <div style={{ marginTop: "6px" }}><span style={{ color: "#4B5363" }}># bun</span></div>
+                      <div style={{ color: "#93C5FD" }}>bun add sayodb</div>
+                      <div style={{ marginTop: "6px" }}><span style={{ color: "#4B5363" }}># yarn</span></div>
+                      <div style={{ color: "#93C5FD" }}>yarn add sayodb</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)", marginBottom: "6px" }}>Global Terminal CLI Install</div>
+                    <div className="code-font" style={{ background: "#08090A", padding: "12px", borderRadius: "8px", border: "1px solid #1F242D", fontSize: "0.78rem", color: "#F4F4F6", lineHeight: 1.6 }}>
+                      <div><span style={{ color: "#4B5363" }}># npm</span></div>
+                      <div style={{ color: "#93C5FD" }}>npm install -g sayodb</div>
+                      <div style={{ marginTop: "6px" }}><span style={{ color: "#4B5363" }}># pnpm</span></div>
+                      <div style={{ color: "#93C5FD" }}>pnpm add -g sayodb</div>
+                      <div style={{ marginTop: "6px" }}><span style={{ color: "#4B5363" }}># bun</span></div>
+                      <div style={{ color: "#93C5FD" }}>bun add -g sayodb</div>
+                      <div style={{ marginTop: "6px" }}><span style={{ color: "#4B5363" }}># yarn</span></div>
+                      <div style={{ color: "#93C5FD" }}>yarn global add sayodb</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Running the Terminal CLI */}
+              <div className="glass-card container-padding" style={{ padding: "22px" }}>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "10px", color: "var(--text-main)" }}>3. Running the Terminal CLI</h3>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", marginBottom: "12px", lineHeight: 1.6 }}>
+                  Once installed, launch the interactive sayoDB terminal client to inspect database state, manage schemas, or run vector searches:
+                </p>
+                <div className="code-font" style={{ background: "#08090A", padding: "14px", borderRadius: "8px", border: "1px solid #1F242D", fontSize: "0.78rem", color: "#F4F4F6", lineHeight: 1.6 }}>
+                  <div><span style={{ color: "#4B5363" }}># If installed locally in project:</span></div>
+                  <div>npx sayodb -h 127.0.0.1 -p 6380</div>
+                  <div style={{ marginTop: "8px" }}><span style={{ color: "#4B5363" }}># If installed globally (-g):</span></div>
+                  <div>sayodb -h 127.0.0.1 -p 6380</div>
+                  <div style={{ marginTop: "8px" }}><span style={{ color: "#4B5363" }}># Single command execution:</span></div>
+                  <div>sayodb PING</div>
+                  <div>sayodb GET user:1001</div>
                 </div>
               </div>
             </div>
@@ -370,7 +478,7 @@ volumes:
               <div style={{ fontSize: "0.8rem", color: "var(--accent-indigo)", fontWeight: 600, marginBottom: "6px" }}>CLIENT DRIVER</div>
               <h1 className="docs-h1" style={{ color: "var(--text-main)" }}>TypeScript SDK Guide (@sayodb/client v0.1.2)</h1>
               <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", lineHeight: 1.6, marginBottom: "24px" }}>
-                Official Node.js &amp; TypeScript client driver SDK featuring full RESP protocol parsing, semantic vector search, JSON schema validation, and a Mongoose-style ODM layer.
+                Official Node.js &amp; TypeScript client driver SDK featuring full RESP protocol parsing, semantic vector search, JSON schema validation, and a Schema-driven ODM layer.
               </p>
 
               <div className="glass-card container-padding" style={{ padding: "20px", marginBottom: "20px" }}>
@@ -384,7 +492,7 @@ volumes:
               </div>
 
               <div className="glass-card container-padding" style={{ padding: "20px", marginBottom: "20px" }}>
-                <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "10px", color: "var(--text-main)" }}>Mongoose-Style ODM &amp; Vector Example</h3>
+                <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "10px", color: "var(--text-main)" }}>Schema &amp; Model ODM Vector Example</h3>
                 <div className="code-font" style={{ background: "#08090A", padding: "14px", borderRadius: "8px", border: "1px solid #1F242D", fontSize: "0.78rem", color: "#F4F4F6", lineHeight: 1.55, overflowX: "auto" }}>
                   <pre style={{ margin: 0 }}>{`import sayodb, { Schema } from "@sayodb/client";
 
@@ -398,7 +506,7 @@ const session = await sayodb.get("session:user1");
 await sayodb.semset("item:1", "Vector item prompt", [0.15, 0.88, 0.42]);
 const results = await sayodb.semsearch([0.14, 0.85, 0.40], { limit: 5, threshold: 0.7 });
 
-// 3. Mongoose-Style Model Schema Validation
+// 3. Schema & Model Validation
 const userSchema = new Schema({ name: String, age: Number });
 const User = sayodb.model("User", userSchema);
 await User.set("1001", { name: "Alice", age: 28 });
@@ -411,22 +519,119 @@ await sayodb.disconnect();`}</pre>
 
           {activeCategory === "gui" && (
             <div>
-              <div style={{ fontSize: "0.8rem", color: "var(--accent-indigo)", fontWeight: 600, marginBottom: "6px" }}>MANAGEMENT CONSOLE</div>
-              <h1 className="docs-h1" style={{ color: "var(--text-main)" }}>Web GUI Dashboard (sanjoydb/sayodb-gui)</h1>
+              <div style={{ fontSize: "0.8rem", color: "var(--accent-mint)", fontWeight: 600, marginBottom: "6px" }}>MANAGEMENT CONSOLE</div>
+              <h1 className="docs-h1" style={{ color: "var(--text-main)" }}>Web GUI Studio Dashboard (sanjoydb/sayodb-gui)</h1>
               <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", lineHeight: 1.6, marginBottom: "24px" }}>
-                The sayoDB Web GUI is a lightweight (10 MB download / 26 MB disk) Nginx-based visual studio dashboard for inspecting telemetry, visualizing 2D/3D vector graphs, and running split-screen Web CLI commands.
+                The sayoDB Web GUI Studio is a lightweight (10 MB download / 26 MB disk footprint) Nginx-powered visual management console designed for inspecting cluster telemetry, visualizing 2D/3D Float32 vector embeddings, browsing keys, and executing split-screen Web CLI queries.
               </p>
 
-              <div className="glass-card container-padding" style={{ padding: "20px", marginBottom: "20px" }}>
-                <h3 style={{ fontSize: "1.05rem", fontWeight: 700, marginBottom: "10px", color: "var(--text-main)" }}>Run Web GUI Container</h3>
-                <div className="code-font" style={{ background: "#08090A", padding: "12px 14px", borderRadius: "8px", border: "1px solid #1F242D", fontSize: "0.8rem", color: "#93C5FD", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>docker run -d --name sayodb-gui -p 8080:80 sanjoydb/sayodb-gui:latest</span>
-                  <button onClick={() => handleCopy("docker run -d --name sayodb-gui -p 8080:80 sanjoydb/sayodb-gui:latest", "gui_run")} style={{ background: "transparent", border: "none", color: "#8B92A0", cursor: "pointer" }}>
-                    {copiedSnippet === "gui_run" ? <Check size={14} style={{ color: "#34D399" }} /> : <Copy size={14} />}
-                  </button>
+              {/* 1. Docker Deployment Options */}
+              <div className="glass-card container-padding" style={{ padding: "22px", marginBottom: "24px" }}>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 700, marginBottom: "10px", color: "var(--text-main)", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Box size={18} style={{ color: "var(--accent-mint)" }} />
+                  <span>1. Deployment &amp; Container Setup</span>
+                </h3>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", marginBottom: "14px", lineHeight: 1.6 }}>
+                  Deploy the Web GUI container alongside your sayoDB server instance using Docker CLI or Docker Compose:
+                </p>
+
+                <div style={{ marginBottom: "16px" }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)", marginBottom: "6px" }}>Docker CLI Launch</div>
+                  <div className="code-font" style={{ background: "#08090A", padding: "12px 14px", borderRadius: "8px", border: "1px solid #1F242D", fontSize: "0.8rem", color: "#93C5FD", display: "flex", justifyContent: "space-between", alignItems: "center", overflowX: "auto" }}>
+                    <span style={{ whiteSpace: "nowrap" }}>docker run -d --name sayodb-gui -p 8080:80 sanjoydb/sayodb-gui:latest</span>
+                    <button onClick={() => handleCopy("docker run -d --name sayodb-gui -p 8080:80 sanjoydb/sayodb-gui:latest", "gui_run")} style={{ background: "transparent", border: "none", color: "#8B92A0", cursor: "pointer", marginLeft: "10px" }}>
+                      {copiedSnippet === "gui_run" ? <Check size={14} style={{ color: "#34D399" }} /> : <Copy size={14} />}
+                    </button>
+                  </div>
                 </div>
-                <div style={{ marginTop: "10px", fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                  Open <code style={{ color: "var(--accent-indigo)" }}>http://localhost:8080</code> in your browser to access the management interface.
+
+                <div>
+                  <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-main)", marginBottom: "6px" }}>Docker Compose Setup (Recommended)</div>
+                  <div className="code-font" style={{ background: "#08090A", padding: "14px", borderRadius: "8px", border: "1px solid #1F242D", fontSize: "0.78rem", color: "#F4F4F6", lineHeight: 1.55, overflowX: "auto" }}>
+                    <pre style={{ margin: 0 }}>{`version: '3.8'
+services:
+  sayodb-server:
+    image: sanjoydb/sayodb-server:latest
+    container_name: sayodb-server
+    ports:
+      - "6380:6380" # RESP TCP Port
+      - "6381:6381" # REST HTTP Bridge Port
+
+  sayodb-gui:
+    image: sanjoydb/sayodb-gui:latest
+    container_name: sayodb-gui
+    ports:
+      - "8080:80" # Web Dashboard UI
+    environment:
+      - SAYODB_HOST=sayodb-server
+      - SAYODB_PORT=6380
+    depends_on:
+      - sayodb-server`}</pre>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: "12px", fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                  Once launched, open <code style={{ color: "var(--accent-mint)" }}>http://localhost:8080</code> in your browser to access the management interface.
+                </div>
+              </div>
+
+              {/* 2. Features Tour */}
+              <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-main)", marginBottom: "16px" }}>Comprehensive Feature Tour</h2>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", marginBottom: "28px" }}>
+                {/* Feature 1 */}
+                <div className="glass-card container-padding" style={{ padding: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                    <Monitor size={18} style={{ color: "var(--accent-mint)" }} />
+                    <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)" }}>1. Real-Time Telemetry &amp; Health</h3>
+                  </div>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", lineHeight: 1.6 }}>
+                    Live cluster monitoring gauges tracking RSS vs Heap memory consumption, hit/miss ratios, active key counts, and zero-OOM tiering status (spill trigger at 85%, recovery target at 70%).
+                  </p>
+                </div>
+
+                {/* Feature 2 */}
+                <div className="glass-card container-padding" style={{ padding: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                    <Search size={18} style={{ color: "var(--accent-indigo)" }} />
+                    <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)" }}>2. Key-Value &amp; Document Inspector</h3>
+                  </div>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", lineHeight: 1.6 }}>
+                    Tree-view key browser supporting pattern search (<code className="code-font" style={{ color: "var(--accent-indigo)" }}>user:*</code>, <code className="code-font" style={{ color: "var(--accent-indigo)" }}>session:*</code>), data type inspection (<code className="code-font" style={{ color: "var(--accent-indigo)" }}>STRING</code>, <code className="code-font" style={{ color: "var(--accent-indigo)" }}>JSON</code>, <code className="code-font" style={{ color: "var(--accent-indigo)" }}>VECTOR</code>), live payload editing, and TTL countdown modification.
+                  </p>
+                </div>
+
+                {/* Feature 3 */}
+                <div className="glass-card container-padding" style={{ padding: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                    <Brain size={18} style={{ color: "#FBBF24" }} />
+                    <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)" }}>3. Vector Embedding Visualizer</h3>
+                  </div>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", lineHeight: 1.6 }}>
+                    Visual cluster space graph plotting stored Float32 vector embeddings with Cosine Similarity distance heatmaps for testing and tuning vector search queries (<code className="code-font" style={{ color: "#FBBF24" }}>SEMGET</code> / <code className="code-font" style={{ color: "#FBBF24" }}>SEMSEARCH</code>).
+                  </p>
+                </div>
+
+                {/* Feature 4 */}
+                <div className="glass-card container-padding" style={{ padding: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                    <Terminal size={18} style={{ color: "var(--accent-mint)" }} />
+                    <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)" }}>4. Split-Screen Web REPL</h3>
+                  </div>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", lineHeight: 1.6 }}>
+                    Browser-based interactive terminal supporting all RESP protocol commands. Features command autocompletion, response syntax formatting, and split-screen execution.
+                  </p>
+                </div>
+
+                {/* Feature 5 */}
+                <div className="glass-card container-padding" style={{ padding: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                    <ShieldCheck size={18} style={{ color: "var(--accent-indigo)" }} />
+                    <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-main)" }}>5. Schema Enforcement Studio</h3>
+                  </div>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", lineHeight: 1.6 }}>
+                    Visual inspector displaying active engine-level JSON Schema validation contracts (<code className="code-font" style={{ color: "var(--accent-indigo)" }}>SCHEMA SET</code>) and real-time validation error logs.
+                  </p>
                 </div>
               </div>
             </div>

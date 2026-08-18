@@ -69,7 +69,8 @@ export default function Footer() {
           <div>
             <h5 style={{ color: "var(--text-main)", fontSize: "0.88rem", fontWeight: 700, marginBottom: "16px" }}>Developers</h5>
             <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "10px", fontSize: "0.85rem", color: "var(--text-muted)" }}>
-              <li><Link href="/docs" style={{ color: "var(--text-muted)", textDecoration: "none" }}>TypeScript SDK Guide</Link></li>
+              <li><Link href="/docs?category=gui" style={{ color: "var(--text-muted)", textDecoration: "none" }}>Web GUI Studio Guide</Link></li>
+              <li><Link href="/docs?category=sdk" style={{ color: "var(--text-muted)", textDecoration: "none" }}>TypeScript SDK Guide</Link></li>
               <li><Link href="/docs" style={{ color: "var(--text-muted)", textDecoration: "none" }}>Documentation Hub</Link></li>
               <li>
                 <a href="https://github.com" target="_blank" rel="noreferrer" style={{ color: "#F87171", textDecoration: "none", display: "flex", alignItems: "center", gap: "6px", fontWeight: 600 }}>

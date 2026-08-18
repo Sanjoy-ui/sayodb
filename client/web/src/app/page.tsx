@@ -158,7 +158,7 @@ export default function LandingPage() {
   }, [jsonText]);
 
   const handleCopyCmd = () => {
-    navigator.clipboard.writeText("npx sayodb");
+    navigator.clipboard.writeText("npm i sayodb");
     setCopiedCmd(true);
     setTimeout(() => setCopiedCmd(false), 2000);
   };
@@ -239,14 +239,10 @@ export default function LandingPage() {
                 <ArrowRight size={16} />
               </Link>
 
-              <button onClick={handleCopyCmd} className="code-font btn-mobile-full" style={{ background: "var(--bg-card)", border: "1px solid var(--border-card)", borderRadius: "10px", padding: "12px 20px", color: "var(--accent-indigo)", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", fontSize: "0.92rem", transition: "all 0.2s" }}>
-                <span style={{ color: "var(--text-dim)" }}>$</span>
-                <span>npx sayodb</span>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.78rem", padding: "3px 8px", borderRadius: "6px", background: copiedCmd ? "rgba(52, 211, 153, 0.15)" : "rgba(0, 0, 0, 0.05)", color: copiedCmd ? "var(--accent-mint)" : "var(--text-muted)" }}>
-                  {copiedCmd ? <Check size={13} /> : <Copy size={13} />}
-                  <span>{copiedCmd ? "Copied" : "Copy"}</span>
-                </div>
-              </button>
+              <Link href="/docs?category=installation" className="btn-secondary btn-mobile-full" style={{ padding: "12px 18px", fontSize: "0.88rem" }}>
+                <Terminal size={16} style={{ color: "var(--accent-indigo)" }} />
+                <span>Installation Guide</span>
+              </Link>
 
               <a href="https://www.npmjs.com/package/@sayodb/client" target="_blank" rel="noreferrer" className="btn-secondary btn-mobile-full" style={{ padding: "12px 18px", fontSize: "0.88rem" }}>
                 <Cpu size={16} style={{ color: "var(--accent-mint)" }} />
@@ -475,7 +471,7 @@ export default function LandingPage() {
         <div className="grid-2col">
           <div className="glass-card container-padding" style={{ padding: "36px", position: "relative", overflow: "hidden" }}>
             <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: "linear-gradient(90deg, #5E6AD2, transparent)" }} />
-            
+
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "18px" }}>
               <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "rgba(94, 106, 210, 0.15)", border: "1px solid rgba(94, 106, 210, 0.3)", color: "var(--accent-indigo)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <HardDrive size={20} />
@@ -827,14 +823,10 @@ export default function LandingPage() {
               <ArrowRight size={15} />
             </Link>
 
-            <button onClick={handleCopyCmd} className="code-font btn-mobile-full" style={{ background: "var(--bg-card-hover)", border: "1px solid var(--border-card)", borderRadius: "8px", padding: "11px 18px", color: "var(--accent-indigo)", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontSize: "0.9rem" }}>
-              <span style={{ color: "var(--text-dim)" }}>$</span>
-              <span>npx sayodb</span>
-              <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.76rem", padding: "2px 6px", borderRadius: "4px", background: copiedCmd ? "rgba(52, 211, 153, 0.15)" : "rgba(0, 0, 0, 0.05)", color: copiedCmd ? "var(--accent-mint)" : "var(--text-muted)" }}>
-                {copiedCmd ? <Check size={12} /> : <Copy size={12} />}
-                <span>{copiedCmd ? "Copied" : "Copy"}</span>
-              </div>
-            </button>
+            <Link href="/docs?category=installation" className="btn-secondary btn-mobile-full" style={{ padding: "11px 18px", fontSize: "0.88rem" }}>
+              <Terminal size={15} style={{ color: "var(--accent-indigo)" }} />
+              <span>Installation &amp; Setup</span>
+            </Link>
           </div>
 
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "20px", flexWrap: "wrap", fontSize: "0.86rem", color: "var(--text-muted)" }}>

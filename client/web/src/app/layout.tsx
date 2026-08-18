@@ -16,7 +16,37 @@ export const metadata: Metadata = {
     "Redis alternative",
     "AI cache",
   ],
+  icons: {
+    icon: "/logo-mark-transparent.png",
+    shortcut: "/logo-mark-transparent.png",
+    apple: "/logo-mark-transparent.png",
+  },
+  openGraph: {
+    title: "sayoDB | The In-Memory Vector Store That Never Runs Out of Memory",
+    description:
+      "Blazing fast 0.1ms latency in-memory database featuring Zero-OOM Tiered Spilling to disk, embedded Cosine Similarity Float32 vector engine, and protocol-level JSON Schema validation.",
+    siteName: "sayoDB",
+    images: [
+      {
+        url: "/logo-transparent.png",
+        width: 1200,
+        height: 630,
+        alt: "sayoDB Logo",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "sayoDB | In-Memory Vector Database",
+    description:
+      "Sub-millisecond latency vector store with Zero-OOM Tiering and JSON Schema validation.",
+    images: ["/logo-transparent.png"],
+  },
 };
+
+import SmoothScroll from "../components/SmoothScroll";
 
 export default function RootLayout({
   children,
@@ -38,7 +68,7 @@ export default function RootLayout({
             })();`,
           }}
         />
-        {children}
+        <SmoothScroll>{children}</SmoothScroll>
       </body>
     </html>
   );

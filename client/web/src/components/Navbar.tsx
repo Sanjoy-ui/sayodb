@@ -16,6 +16,7 @@ import {
   Zap,
   Brain,
   Layers,
+  Monitor,
 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 
@@ -111,6 +112,10 @@ export default function Navbar() {
                     <Brain size={14} style={{ color: "var(--accent-indigo)" }} />
                     <span>AI Vector Search</span>
                   </Link>
+                  <Link href="/docs?category=gui" onClick={() => setActiveHoverMenu(null)} style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "6px", color: "var(--text-main)", fontSize: "0.85rem", fontWeight: 600 }} className="nav-link-item">
+                    <Monitor size={14} style={{ color: "var(--accent-mint)" }} />
+                    <span>Web GUI Studio Guide</span>
+                  </Link>
                   <Link href="/docs" onClick={() => setActiveHoverMenu(null)} style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", borderRadius: "6px", color: "var(--text-main)", fontSize: "0.85rem", fontWeight: 600 }} className="nav-link-item">
                     <Layers size={14} style={{ color: "#FBBF24" }} />
                     <span>RESP &amp; REST Protocols</span>
@@ -165,10 +170,10 @@ export default function Navbar() {
             <ThemeToggle />
 
             <div className="nav-desktop">
-              <a href="http://localhost:5173" target="_blank" rel="noreferrer" className="btn-primary" style={{ padding: "7px 16px", fontSize: "0.84rem" }}>
+              <Link href="/docs?category=gui" className="btn-primary" style={{ padding: "7px 16px", fontSize: "0.84rem" }}>
                 <Activity size={14} />
                 <span>Studio GUI</span>
-              </a>
+              </Link>
             </div>
 
             {/* Mobile Menu Hamburger Button */}
@@ -204,9 +209,9 @@ export default function Navbar() {
             <a href="https://hub.docker.com/r/sanjoydb/sayodb-server" target="_blank" rel="noreferrer" onClick={() => setIsMobileMenuOpen(false)} style={{ color: "var(--accent-indigo)", textDecoration: "none", fontSize: "0.9rem", fontWeight: 600 }}>
               Docker Hub Image (sanjoydb/sayodb-server)
             </a>
-            <a href="http://localhost:5173" target="_blank" rel="noreferrer" onClick={() => setIsMobileMenuOpen(false)} className="btn-primary btn-mobile-full" style={{ justifyContent: "center", marginTop: "6px" }}>
-              Open Studio GUI Dashboard
-            </a>
+            <Link href="/docs?category=gui" onClick={() => setIsMobileMenuOpen(false)} className="btn-primary btn-mobile-full" style={{ justifyContent: "center", marginTop: "6px" }}>
+              Open Studio GUI Guide
+            </Link>
           </div>
         )}
       </header>
