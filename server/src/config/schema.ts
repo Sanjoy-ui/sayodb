@@ -11,6 +11,7 @@ export interface SayoDBConfig {
   host: string;
   maxConnections: number;
   timeout: number;
+  maxPayloadSize: number; // Max payload buffer size in bytes (default 64MB)
   requirePass?: string;
   maxMemory: number; // 0 = unlimited
   maxMemoryPolicy: EvictionPolicy;
@@ -24,13 +25,22 @@ export interface SayoDBConfig {
   spillThresholdPercent: number; // e.g. 0.85 for 85%
   spillTargetPercent: number; // e.g. 0.70 for 70%
   spillDiskPath: string;
+  protectedMode: boolean;
+  renameCommands: Record<string, string>;
+  tlsEnabled: boolean;
+  tlsCertFile?: string;
+  tlsKeyFile?: string;
+  tlsCaFile?: string;
+  tlsAuthClients?: boolean;
+  tlsRejectUnauthorized?: boolean;
 }
 
 export const DEFAULT_CONFIG: SayoDBConfig = {
   port: 6380,
   host: "127.0.0.1",
-  maxConnections: 10000,
-  timeout: 0,
+  maxConnections: 1000,
+  timeout: 300, // 300 seconds (5 minutes) idle socket timeout
+  maxPayloadSize: 64 * 1024 * 1024, // 64MB max payload ceiling
   maxMemory: 256 * 1024 * 1024, // 256MB (secure default limit)
   maxMemoryPolicy: "noeviction",
   defaultTtl: 60,
@@ -43,4 +53,7 @@ export const DEFAULT_CONFIG: SayoDBConfig = {
   spillThresholdPercent: 0.85, // Configurable default 85% RAM threshold
   spillTargetPercent: 0.70, // Spills down to 70% target
   spillDiskPath: "data/spill.db",
+  protectedMode: true,
+  renameCommands: {},
+  tlsEnabled: false,
 };

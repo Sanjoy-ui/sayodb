@@ -3,12 +3,19 @@ import { TCPServer } from "./network/server.js";
 import { HTTPBridgeServer } from "./network/http-bridge.js";
 import { activeExpiryTicker } from "./engine/memory/expiry.js";
 import { memorySpillerService } from "./engine/memory/spiller.js";
+import { isProtectedModeActive } from "./utils/network-security.js";
 import { logger } from "./utils/logger.js";
 
 async function main() {
   logger.info("Initializing sayoDB server...");
 
   const config = loadConfig();
+
+  if (isProtectedModeActive(config)) {
+    logger.warn(
+      `[SECURITY WARNING] sayoDB is running in Protected Mode because it is bound to ${config.host} without a password. Queries from remote clients will be BLOCKED. To allow remote connections, set requirepass / SAYODB_PASSWORD or bind to 127.0.0.1.`
+    );
+  }
 
   // Start active TTL expiration background ticker
   activeExpiryTicker.start();
@@ -29,6 +36,7 @@ async function main() {
       tcpPort: config.port,
       httpPort: config.port + 1,
       host: config.host,
+      protectedMode: isProtectedModeActive(config) ? "ACTIVE (wildcard 0.0.0.0 without pass)" : "disabled/normal",
       vectorEngine: "enabled (Cosine Similarity / Float32)",
       maxMemory: formatMemorySize(config.maxMemory),
       spillThreshold: `${(config.spillThresholdPercent * 100).toFixed(0)}%`,

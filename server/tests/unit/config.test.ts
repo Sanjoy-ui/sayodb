@@ -21,4 +21,39 @@ describe("Server Config & Memory Limits", () => {
     expect(formatMemorySize(1024 * 1024 * 1024)).toBe("1GB (1073741824 bytes)");
     expect(formatMemorySize(0)).toBe("unlimited");
   });
+
+  describe("Password Configuration", () => {
+    const originalEnvPassword = process.env.SAYODB_PASSWORD;
+    const originalEnvRequirePass = process.env.SAYODB_REQUIREPASS;
+
+    function resetEnv() {
+      if (originalEnvPassword !== undefined) {
+        process.env.SAYODB_PASSWORD = originalEnvPassword;
+      } else {
+        delete process.env.SAYODB_PASSWORD;
+      }
+      if (originalEnvRequirePass !== undefined) {
+        process.env.SAYODB_REQUIREPASS = originalEnvRequirePass;
+      } else {
+        delete process.env.SAYODB_REQUIREPASS;
+      }
+    }
+
+    it("loads requirePass from SAYODB_PASSWORD env var", () => {
+      resetEnv();
+      process.env.SAYODB_PASSWORD = "secret_env_pass";
+      const config = loadConfig("/non/existent/path/sayodb.conf");
+      expect(config.requirePass).toBe("secret_env_pass");
+      resetEnv();
+    });
+
+    it("loads requirePass from SAYODB_REQUIREPASS env var", () => {
+      resetEnv();
+      process.env.SAYODB_REQUIREPASS = "secret_requirepass_env";
+      const config = loadConfig("/non/existent/path/sayodb.conf");
+      expect(config.requirePass).toBe("secret_requirepass_env");
+      resetEnv();
+    });
+  });
 });
+

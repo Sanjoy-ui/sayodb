@@ -1,10 +1,16 @@
 import net from "node:net";
+import tls from "node:tls";
+import fs from "node:fs";
+import path from "node:path";
 
 export interface SayoDBClientOptions {
   host?: string;
   port?: number;
   timeout?: number;
   password?: string;
+  tls?: boolean;
+  insecure?: boolean;
+  ca?: string;
   autoReconnect?: boolean;
 }
 
@@ -24,6 +30,10 @@ export class SayoDBClient {
   private host: string;
   private port: number;
   private timeout: number;
+  private password?: string;
+  private tls: boolean;
+  private insecure: boolean;
+  private ca?: string;
   private socket: net.Socket | null = null;
   private connected = false;
   private buffer = Buffer.alloc(0);
@@ -33,6 +43,10 @@ export class SayoDBClient {
     this.host = options.host || "127.0.0.1";
     this.port = options.port || 6380;
     this.timeout = options.timeout || 5000;
+    this.password = options.password;
+    this.tls = options.tls || false;
+    this.insecure = options.insecure || false;
+    this.ca = options.ca;
   }
 
   public connect(): Promise<void> {
@@ -41,10 +55,40 @@ export class SayoDBClient {
         return resolve();
       }
 
-      this.socket = net.createConnection({ host: this.host, port: this.port }, () => {
+      const onConnect = async () => {
         this.connected = true;
+        if (this.password) {
+          try {
+            const authRes = await this.auth(this.password);
+            if (authRes !== "OK") {
+              throw new Error(`Authentication failed: ${authRes}`);
+            }
+          } catch (err: any) {
+            this.disconnect();
+            return reject(err);
+          }
+        }
         resolve();
-      });
+      };
+
+      try {
+        if (this.tls) {
+          const caCert = this.ca ? fs.readFileSync(path.resolve(process.cwd(), this.ca)) : undefined;
+          this.socket = tls.connect(
+            {
+              host: this.host,
+              port: this.port,
+              rejectUnauthorized: !this.insecure,
+              ca: caCert,
+            },
+            onConnect
+          );
+        } else {
+          this.socket = net.createConnection({ host: this.host, port: this.port }, onConnect);
+        }
+      } catch (err: any) {
+        return reject(err);
+      }
 
       this.socket.on("data", (chunk: Buffer) => this.onData(chunk));
 
@@ -95,7 +139,11 @@ export class SayoDBClient {
     });
   }
 
-  // --- Convenience Database Methods ---
+  public async auth(password: string): Promise<string> {
+    return this.sendCommand(["AUTH", password]);
+  }
+
+  // --- Convenience Key-Value Database Methods ---
 
   public async set(key: string, value: string, ttlSeconds?: number): Promise<string> {
     const args = ["SET", key, value];
@@ -176,6 +224,47 @@ export class SayoDBClient {
   public async ping(msg?: string): Promise<string> {
     const args = msg ? ["PING", msg] : ["PING"];
     return this.sendCommand(args);
+  }
+
+  // --- JSON Schema & Structured Document Methods ---
+
+  public async schemaSet(schemaName: string, definitionJsonStr: string): Promise<string> {
+    return this.sendCommand(["SCHEMA", "SET", schemaName, definitionJsonStr]);
+  }
+
+  public async schemaGet(schemaName: string): Promise<string | null> {
+    return this.sendCommand(["SCHEMA", "GET", schemaName]);
+  }
+
+  public async schemaList(): Promise<string[]> {
+    return this.sendCommand(["SCHEMA", "LIST"]);
+  }
+
+  public async schemaDel(schemaName: string): Promise<number> {
+    return this.sendCommand(["SCHEMA", "DEL", schemaName]);
+  }
+
+  public async setjson(key: string, data: any, options?: { schema?: string; ttlSeconds?: number }): Promise<string> {
+    const jsonStr = typeof data === "string" ? data : JSON.stringify(data);
+    const args = ["SETJSON", key];
+    if (options?.schema) {
+      args.push("SCHEMA", options.schema);
+    }
+    args.push(jsonStr);
+    if (options?.ttlSeconds !== undefined) {
+      args.push("EX", String(options.ttlSeconds));
+    }
+    return this.sendCommand(args);
+  }
+
+  public async getjson(key: string): Promise<any> {
+    const raw = await this.sendCommand(["GETJSON", key]);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return raw;
+    }
   }
 
   // --- Semantic AI & LLM Vector Cache Methods ---
@@ -385,3 +474,181 @@ export class SayoDBClient {
     }
   }
 }
+
+// --- Mongoose-style Schema & Model API ---
+
+export type SchemaTypeDefinition =
+  | StringConstructor
+  | NumberConstructor
+  | BooleanConstructor
+  | ArrayConstructor
+  | ObjectConstructor
+  | {
+      type: StringConstructor | NumberConstructor | BooleanConstructor | ArrayConstructor | ObjectConstructor;
+      required?: boolean;
+      default?: any;
+      min?: number;
+      max?: number;
+    };
+
+export interface SchemaDefinition {
+  [key: string]: SchemaTypeDefinition;
+}
+
+export class Schema {
+  public readonly definition: SchemaDefinition;
+
+  constructor(definition: SchemaDefinition) {
+    this.definition = definition;
+  }
+
+  public toJSONSchema(): Record<string, string> {
+    const schemaJson: Record<string, string> = {};
+    for (const [key, prop] of Object.entries(this.definition)) {
+      if (typeof prop === "function") {
+        schemaJson[key] = prop.name.toLowerCase();
+      } else if (prop && typeof prop === "object" && prop.type) {
+        schemaJson[key] = prop.type.name.toLowerCase();
+      }
+    }
+    return schemaJson;
+  }
+}
+
+export class Model<T = Record<string, any>> {
+  public readonly name: string;
+  public readonly schema: Schema;
+  public readonly client: SayoDBClient;
+  private schemaRegistered = false;
+
+  constructor(name: string, schema: Schema, client: SayoDBClient) {
+    this.name = name;
+    this.schema = schema;
+    this.client = client;
+  }
+
+  public async initSchema(): Promise<string> {
+    if (this.schemaRegistered) return "OK";
+    const jsonSchemaStr = JSON.stringify(this.schema.toJSONSchema());
+    const res = await this.client.schemaSet(this.name, jsonSchemaStr);
+    this.schemaRegistered = true;
+    return res;
+  }
+
+  public async set(key: string, data: T, ttlSeconds?: number): Promise<string> {
+    await this.initSchema();
+    const fullKey = key.includes(":") ? key : `${this.name.toLowerCase()}:${key}`;
+    return this.client.setjson(fullKey, data, { schema: this.name, ttlSeconds });
+  }
+
+  public async get(key: string): Promise<T | null> {
+    const fullKey = key.includes(":") ? key : `${this.name.toLowerCase()}:${key}`;
+    return this.client.getjson(fullKey);
+  }
+
+  public async del(key: string): Promise<number> {
+    const fullKey = key.includes(":") ? key : `${this.name.toLowerCase()}:${key}`;
+    return this.client.del(fullKey);
+  }
+}
+
+// --- Default sayodb Singleton Manager (Mongoose Pattern) ---
+
+class SayoDBManager {
+  private defaultClient: SayoDBClient | null = null;
+  private modelsMap: Map<string, Model<any>> = new Map();
+
+  public Schema = Schema;
+
+  public async connect(
+    urlOrOptions?: string | SayoDBClientOptions,
+    options: SayoDBClientOptions = {}
+  ): Promise<SayoDBClient> {
+    let opts: SayoDBClientOptions = {};
+    if (typeof urlOrOptions === "string") {
+      const rawUrl = urlOrOptions.startsWith("sayodb://") ? urlOrOptions.replace("sayodb://", "http://") : urlOrOptions;
+      try {
+        const parsedUrl = new URL(rawUrl);
+        opts = {
+          host: parsedUrl.hostname || "127.0.0.1",
+          port: parseInt(parsedUrl.port, 10) || 6380,
+          password: parsedUrl.searchParams.get("password") || options.password,
+          ...options,
+        };
+      } catch {
+        opts = options;
+      }
+    } else if (urlOrOptions) {
+      opts = { ...urlOrOptions, ...options };
+    } else {
+      opts = options;
+    }
+
+    this.defaultClient = new SayoDBClient(opts);
+    await this.defaultClient.connect();
+    return this.defaultClient;
+  }
+
+  public async disconnect(): Promise<void> {
+    if (this.defaultClient) {
+      await this.defaultClient.disconnect();
+      this.defaultClient = null;
+    }
+  }
+
+  public get client(): SayoDBClient {
+    if (!this.defaultClient) {
+      throw new Error("sayodb client is not connected. Call sayodb.connect(...) first.");
+    }
+    return this.defaultClient;
+  }
+
+  public createClient(options: SayoDBClientOptions = {}): SayoDBClient {
+    return new SayoDBClient(options);
+  }
+
+  public model<T = Record<string, any>>(name: string, schema: Schema): Model<T> {
+    const modelInstance = new Model<T>(name, schema, this.client);
+    this.modelsMap.set(name, modelInstance);
+    return modelInstance;
+  }
+
+  // Convenient proxy methods to default client
+  public set(key: string, value: string, ttlSeconds?: number): Promise<string> {
+    return this.client.set(key, value, ttlSeconds);
+  }
+
+  public get(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
+
+  public del(...keys: string[]): Promise<number> {
+    return this.client.del(...keys);
+  }
+
+  public semset(
+    prompt: string,
+    response: string,
+    vector: Float32Array | number[] | string,
+    options?: { ttlSeconds?: number; namespace?: string; tag?: string }
+  ): Promise<string> {
+    return this.client.semset(prompt, response, vector, options);
+  }
+
+  public semget(
+    vector: Float32Array | number[] | string,
+    options?: { threshold?: number; namespace?: string }
+  ): Promise<string | null> {
+    return this.client.semget(vector, options);
+  }
+
+  public semsearch(
+    vector: Float32Array | number[] | string,
+    options?: { limit?: number; threshold?: number; namespace?: string }
+  ): Promise<string[]> {
+    return this.client.semsearch(vector, options);
+  }
+}
+
+export const sayodb = new SayoDBManager();
+export default sayodb;

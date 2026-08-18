@@ -16,6 +16,8 @@
     "web": "pnpm --filter sayodb-web dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "publish:dry-run": "cd client/cli && npm publish --dry-run",
+    "publish:npm": "cd client/cli && npm publish --access public"
   }
 }

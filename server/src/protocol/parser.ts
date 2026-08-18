@@ -1,9 +1,38 @@
 import { CommandMessage, RESPType, RESPValue } from "./types.js";
 
+export class PayloadTooLargeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PayloadTooLargeError";
+  }
+}
+
 export class RESPParser {
   private buffer: Buffer = Buffer.alloc(0);
+  private maxPayloadSize: number;
+
+  constructor(maxPayloadSize: number = 64 * 1024 * 1024) {
+    this.maxPayloadSize = maxPayloadSize;
+  }
+
+  public setMaxPayloadSize(size: number): void {
+    this.maxPayloadSize = size;
+  }
+
+  public get bufferLength(): number {
+    return this.buffer.length;
+  }
+
+  public reset(): void {
+    this.buffer = Buffer.alloc(0);
+  }
 
   public append(chunk: Buffer): void {
+    if (this.buffer.length + chunk.length > this.maxPayloadSize) {
+      throw new PayloadTooLargeError(
+        `Payload size (${this.buffer.length + chunk.length} bytes) exceeds maximum ceiling of ${this.maxPayloadSize} bytes`
+      );
+    }
     this.buffer = Buffer.concat([this.buffer, chunk]);
   }
 
@@ -83,6 +112,12 @@ export class RESPParser {
 
     const lenStr = this.buffer.toString("utf-8", 1, crlfIndex);
     const length = parseInt(lenStr, 10);
+
+    if (length > this.maxPayloadSize) {
+      throw new PayloadTooLargeError(
+        `Declared bulk string length (${length} bytes) exceeds maximum payload ceiling of ${this.maxPayloadSize} bytes`
+      );
+    }
 
     if (length === -1) {
       this.buffer = this.buffer.subarray(crlfIndex + 2);

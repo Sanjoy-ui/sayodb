@@ -1,0 +1,132 @@
+<svg width="640" height="480" viewBox="0 0 640 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 1. TOP HORIZONTAL INPUT TRACK -->
+  <rect x="24" y="72" width="592" height="44" rx="22" fill="#E2E8F0" opacity="0.4"/>
+
+  <!-- 4 ISOMETRIC WIREFRAME 3D CUBES WITH LABELS -->
+  <!-- ITEM 1: Data Streams -->
+  <g transform="translate(68, 20)">
+    <text x="30" y="20" text-anchor="middle" fill="#0F172A" font-family="Satoshi, system-ui, sans-serif" font-size="13" font-weight="700">Data Streams</text>
+    <!-- 3D Cube Icon -->
+    <g transform="translate(8, 32)">
+      <polygon points="22,0 44,11 22,22 0,11" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+      <polygon points="0,11 22,22 22,46 0,35" fill="#F8FAFC" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+      <polygon points="22,22 44,11 44,35 22,46" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <!-- ITEM 2: RESP & REST APIs -->
+  <g transform="translate(216, 20)">
+    <text x="30" y="20" text-anchor="middle" fill="#0F172A" font-family="Satoshi, system-ui, sans-serif" font-size="13" font-weight="700">APIs (RESP/REST)</text>
+    <!-- 3D Cube Icon -->
+    <g transform="translate(8, 32)">
+      <polygon points="22,0 44,11 22,22 0,11" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+      <polygon points="0,11 22,22 22,46 0,35" fill="#F8FAFC" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+      <polygon points="22,22 44,11 44,35 22,46" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <!-- ITEM 3: SDK Services -->
+  <g transform="translate(364, 20)">
+    <text x="30" y="20" text-anchor="middle" fill="#0F172A" font-family="Satoshi, system-ui, sans-serif" font-size="13" font-weight="700">Services &amp; SDKs</text>
+    <!-- 3D Cube Icon -->
+    <g transform="translate(8, 32)">
+      <polygon points="22,0 44,11 22,22 0,11" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+      <polygon points="0,11 22,22 22,46 0,35" fill="#F8FAFC" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+      <polygon points="22,22 44,11 44,35 22,46" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <!-- ITEM 4: Applications -->
+  <g transform="translate(512, 20)">
+    <text x="30" y="20" text-anchor="middle" fill="#0F172A" font-family="Satoshi, system-ui, sans-serif" font-size="13" font-weight="700">Applications</text>
+    <!-- 3D Cube Icon -->
+    <g transform="translate(8, 32)">
+      <polygon points="22,0 44,11 22,22 0,11" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+      <polygon points="0,11 22,22 22,46 0,35" fill="#F8FAFC" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+      <polygon points="22,22 44,11 44,35 22,46" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <!-- 2. MIDDLE CONNECTIONS & ANNOTATION LABELS -->
+  <!-- Vertical lines from Cubes -->
+  <line x1="98" y1="116" x2="98" y2="136" stroke="#64748B" stroke-width="1.5"/>
+  <line x1="394" y1="116" x2="394" y2="136" stroke="#64748B" stroke-width="1.5"/>
+  <line x1="542" y1="116" x2="542" y2="136" stroke="#64748B" stroke-width="1.5"/>
+
+  <!-- Left Annotation + Curved Arrow -->
+  <text x="98" y="156" text-anchor="middle" fill="#64748B" font-family="Satoshi, system-ui, sans-serif" font-size="11" font-weight="600">Float32 Vector Search</text>
+  <path d="M 98 168 Q 110 205 180 205" fill="none" stroke="#334155" stroke-width="1.5"/>
+  <polygon points="186,205 176,200 176,210" fill="#334155"/>
+
+  <!-- Center Annotation + Straight Arrow -->
+  <text x="320" y="156" text-anchor="middle" fill="#64748B" font-family="Satoshi, system-ui, sans-serif" font-size="11" font-weight="600">JSON Schema Contract</text>
+  <line x1="320" y1="168" x2="320" y2="200" stroke="#334155" stroke-width="1.5"/>
+  <polygon points="320,206 315,196 325,196" fill="#334155"/>
+
+  <!-- Right Annotation + Curved Arrow -->
+  <text x="542" y="156" text-anchor="middle" fill="#64748B" font-family="Satoshi, system-ui, sans-serif" font-size="11" font-weight="600">Zero-OOM Tier Spiller</text>
+  <path d="M 542 168 Q 530 205 460 205" fill="none" stroke="#334155" stroke-width="1.5"/>
+  <polygon points="454,205 464,200 464,210" fill="#334155"/>
+
+  <!-- 3. REALISTIC 3D CYLINDER DATABASE CLUSTER (L1 MEMORY / L2 DISK) -->
+  <g transform="translate(0, 10)">
+    
+    {/* NODE 1: BACK LEFT CYLINDER */}
+    <g transform="translate(160, 220)">
+      <!-- Disk Lower Body (Blue) -->
+      <path d="M 0 50 A 60 20 0 0 0 120 50 L 120 100 A 60 20 0 0 1 0 100 Z" fill="#1D4ED8" stroke="#0F172A" stroke-width="1.5"/>
+      <ellipse cx="60" cy="100" rx="60" ry="20" fill="#1E40AF" stroke="#0F172A" stroke-width="1.5"/>
+      <text x="60" y="82" text-anchor="middle" fill="#FFFFFF" font-family="Fira Code, monospace" font-size="11" font-weight="700" letter-spacing="1">DISK</text>
+
+      <!-- Memory Upper Body (Electric Indigo) -->
+      <path d="M 0 0 A 60 20 0 0 0 120 0 L 120 50 A 60 20 0 0 1 0 50 Z" fill="#4F46E5" stroke="#0F172A" stroke-width="1.5"/>
+      <ellipse cx="60" cy="0" rx="60" ry="20" fill="#6366F1" stroke="#0F172A" stroke-width="1.5"/>
+      <text x="60" y="32" text-anchor="middle" fill="#FFFFFF" font-family="Fira Code, monospace" font-size="11" font-weight="700" letter-spacing="1">MEMORY</text>
+
+      <!-- Node Badge -->
+      <g transform="translate(18, 126)">
+        <path d="M4 10 C4 4, 10 0, 10 6 C12 2, 16 2, 14 10 Z" fill="#4F46E5"/>
+        <text x="22" y="10" fill="#0F172A" font-family="Satoshi, system-ui, sans-serif" font-size="11" font-weight="700">sayoDB NODE #1</text>
+      </g>
+    </g>
+
+    {/* NODE 2: BACK RIGHT CYLINDER */}
+    <g transform="translate(360, 220)">
+      <!-- Disk Lower Body (Blue) -->
+      <path d="M 0 50 A 60 20 0 0 0 120 50 L 120 100 A 60 20 0 0 1 0 100 Z" fill="#1D4ED8" stroke="#0F172A" stroke-width="1.5"/>
+      <ellipse cx="60" cy="100" rx="60" ry="20" fill="#1E40AF" stroke="#0F172A" stroke-width="1.5"/>
+      <text x="60" y="82" text-anchor="middle" fill="#FFFFFF" font-family="Fira Code, monospace" font-size="11" font-weight="700" letter-spacing="1">DISK</text>
+
+      <!-- Memory Upper Body (Electric Indigo) -->
+      <path d="M 0 0 A 60 20 0 0 0 120 0 L 120 50 A 60 20 0 0 1 0 50 Z" fill="#4F46E5" stroke="#0F172A" stroke-width="1.5"/>
+      <ellipse cx="60" cy="0" rx="60" ry="20" fill="#6366F1" stroke="#0F172A" stroke-width="1.5"/>
+      <text x="60" y="32" text-anchor="middle" fill="#FFFFFF" font-family="Fira Code, monospace" font-size="11" font-weight="700" letter-spacing="1">MEMORY</text>
+
+      <!-- Node Badge -->
+      <g transform="translate(18, 126)">
+        <path d="M4 10 C4 4, 10 0, 10 6 C12 2, 16 2, 14 10 Z" fill="#4F46E5"/>
+        <text x="22" y="10" fill="#0F172A" font-family="Satoshi, system-ui, sans-serif" font-size="11" font-weight="700">sayoDB NODE #2</text>
+      </g>
+    </g>
+
+    {/* NODE 3: FRONT CENTER CYLINDER */}
+    <g transform="translate(260, 260)">
+      <!-- Disk Lower Body (Blue) -->
+      <path d="M 0 50 A 60 20 0 0 0 120 50 L 120 100 A 60 20 0 0 1 0 100 Z" fill="#2563EB" stroke="#0F172A" stroke-width="1.5"/>
+      <ellipse cx="60" cy="100" rx="60" ry="20" fill="#1D4ED8" stroke="#0F172A" stroke-width="1.5"/>
+      <text x="60" y="82" text-anchor="middle" fill="#FFFFFF" font-family="Fira Code, monospace" font-size="11" font-weight="700" letter-spacing="1">DISK</text>
+
+      <!-- Memory Upper Body (Coral Red) -->
+      <path d="M 0 0 A 60 20 0 0 0 120 0 L 120 50 A 60 20 0 0 1 0 50 Z" fill="#DC2626" stroke="#0F172A" stroke-width="1.5"/>
+      <ellipse cx="60" cy="0" rx="60" ry="20" fill="#EF4444" stroke="#0F172A" stroke-width="1.5"/>
+      <text x="60" y="32" text-anchor="middle" fill="#FFFFFF" font-family="Fira Code, monospace" font-size="11" font-weight="700" letter-spacing="1">MEMORY</text>
+
+      <!-- Node Badge -->
+      <g transform="translate(18, 126)">
+        <path d="M4 10 C4 4, 10 0, 10 6 C12 2, 16 2, 14 10 Z" fill="#DC2626"/>
+        <text x="22" y="10" fill="#0F172A" font-family="Satoshi, system-ui, sans-serif" font-size="11" font-weight="700">sayoDB NODE #3</text>
+      </g>
+    </g>
+
+  </g>
+</svg>

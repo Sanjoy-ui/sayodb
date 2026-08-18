@@ -1,30 +1,46 @@
 {
-  "name": "sayodb-cli",
+  "name": "sayodb",
   "version": "0.1.0",
-  "description": "Interactive terminal CLI client for sayoDB",
+  "description": "In-memory vector store and key-value database with zero-OOM spilling",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "bin": {
-    "sayodb": "dist/index.js",
-    "sayodb-cli": "dist/index.js"
+    "sayodb": "dist/cli.js",
+    "sayodb-cli": "dist/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "sayodb": "tsx src/index.ts",
+    "dev": "tsx src/cli.ts",
+    "sayodb": "tsx src/cli.ts",
     "build": "tsup",
-    "start": "node dist/index.js",
+    "prepublishOnly": "pnpm run build",
+    "start": "node dist/cli.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
+    "database",
+    "in-memory",
     "redis",
+    "cache",
+    "vector-store",
+    "ai",
+    "sayodb",
     "cli",
-    "terminal",
-    "sayodb"
+    "mongoose",
+    "driver",
+    "sdk"
   ],
-  "author": "",
+  "author": "sayoDB Team",
   "license": "MIT",
   "dependencies": {
+    "@sayodb/client": "workspace:*",
     "commander": "^12.0.0"
   },
   "devDependencies": {

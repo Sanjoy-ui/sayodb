@@ -14,8 +14,25 @@ import {
   Eye,
   X,
   Columns,
+  Shield,
+  Lock,
+  Unlock,
+  Wifi,
+  Globe,
+  Copy,
+  Check,
 } from "lucide-react";
 import { VectorGraphView, VectorItem } from "./components/VectorGraphView";
+
+const getInitialApiUrl = (): string => {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("sayodb_api_url");
+    if (saved && saved.trim()) return saved.trim();
+  }
+  const envUrl = (import.meta as any).env?.VITE_SAYODB_API_URL || (import.meta as any).env?.VITE_API_URL;
+  if (envUrl && envUrl.trim()) return envUrl.trim();
+  return "http://127.0.0.1:6381";
+};
 
 interface ConsoleLog {
   id: string;
@@ -24,13 +41,30 @@ interface ConsoleLog {
   isError?: boolean;
 }
 
+interface ClientInfo {
+  id: number;
+  remoteAddress: string;
+  isAuthenticated: boolean;
+  authStatus?: "Authenticated" | "Unauthenticated" | "No Auth Required";
+  isLoopback: boolean;
+}
+
 interface ServerStatus {
   online: boolean;
   port: number;
+  httpPort?: number;
   host: string;
+  protectedModeActive?: boolean;
+  protectedModeConfig?: boolean;
+  requirePassSet?: boolean;
+  maxConnections?: number;
+  timeout?: number;
+  maxPayloadSize?: number;
+  defaultTtl?: number;
   dbSize: number;
   memoryUsage: string;
   connectedClients: number;
+  clients?: ClientInfo[];
   keys: Array<{ key: string; type: string; value: string; ttl: string }>;
   vectorItems: VectorItem[];
 }
@@ -75,6 +109,7 @@ const ALL_COMMAND_SUGGESTIONS = [
   { cmd: "CLEARALL", type: "Plain-English", desc: "CLEARALL - Alias for FLUSHDB" },
   { cmd: "FLUSHDB", type: "Standard", desc: "FLUSHDB - Flush all keys" },
   { cmd: "PING", type: "Standard", desc: "PING - Test server connection" },
+  { cmd: "AUTH", type: "Standard", desc: "AUTH <password> - Authenticate session with server password" },
   { cmd: "HELP", type: "System", desc: "HELP - Print command reference" },
   { cmd: "CLEAR", type: "System", desc: "CLEAR - Clear web CLI screen" },
   { cmd: "SEMSET", type: "Vector Engine", desc: "SEMSET <prompt> <resp> EMBEDDING <v1 v2...>" },
@@ -88,7 +123,10 @@ const ALL_COMMAND_SUGGESTIONS = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"overview" | "keys" | "vector" | "cli">("cli");
+  const [activeTab, setActiveTab] = useState<"overview" | "keys" | "vector" | "network" | "cli">("cli");
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [authInput, setAuthInput] = useState<string>("");
+  const [authStatusMsg, setAuthStatusMsg] = useState<string | null>(null);
   const [inputCmd, setInputCmd] = useState("");
   const [consoleLogs, setConsoleLogs] = useState<ConsoleLog[]>([
     { id: "1", command: "PING", response: "PONG" },
@@ -169,6 +207,26 @@ export default function App() {
   const [splitPercent, setSplitPercent] = useState<number>(50); // Left terminal width %
   const isDraggingSplitter = useRef<boolean>(false);
 
+  // Dynamic API Endpoint State
+  const [apiUrl, setApiUrl] = useState<string>(getInitialApiUrl);
+
+  const handleUpdateApiUrl = (newUrl: string) => {
+    const trimmed = newUrl.trim();
+    setApiUrl(trimmed);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("sayodb_api_url", trimmed);
+    }
+  };
+
+  // Configurator form state
+  const [cfgMaxConns, setCfgMaxConns] = useState<string>("1000");
+  const [cfgTimeout, setCfgTimeout] = useState<string>("300");
+  const [cfgMaxPayloadMb, setCfgMaxPayloadMb] = useState<string>("64");
+  const [cfgDefaultTtl, setCfgDefaultTtl] = useState<string>("60");
+  const [cfgSavedMsg, setCfgSavedMsg] = useState<string | null>(null);
+  const [cfgErrMsg, setCfgErrMsg] = useState<string | null>(null);
+  const [isApplyingCfg, setIsApplyingCfg] = useState<boolean>(false);
+
   const [status, setStatus] = useState<ServerStatus>({
     online: false,
     port: 6380,
@@ -186,7 +244,7 @@ export default function App() {
   // Poll live server status every 2 seconds for real-time sync with CLI
   const fetchStatus = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:6381/api/status");
+      const res = await fetch(`${apiUrl}/api/status`);
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
@@ -202,7 +260,77 @@ export default function App() {
     fetchStatus();
     const interval = setInterval(fetchStatus, 2000);
     return () => clearInterval(interval);
-  }, []);
+  }, [apiUrl]);
+
+  // Update configurator inputs whenever status is updated from server
+  useEffect(() => {
+    if (status.online) {
+      if (status.maxConnections !== undefined) setCfgMaxConns(String(status.maxConnections));
+      if (status.timeout !== undefined) setCfgTimeout(String(status.timeout));
+      if (status.maxPayloadSize !== undefined) setCfgMaxPayloadMb(String(Math.round(status.maxPayloadSize / (1024 * 1024))));
+      if (status.defaultTtl !== undefined) setCfgDefaultTtl(String(status.defaultTtl));
+    }
+  }, [status.online, status.maxConnections, status.timeout, status.maxPayloadSize, status.defaultTtl]);
+
+  const handleApplyConfig = async () => {
+    setCfgSavedMsg(null);
+    setCfgErrMsg(null);
+    setIsApplyingCfg(true);
+
+    try {
+      // 1. Max Connections
+      if (cfgMaxConns) {
+        const res = await fetch(`${apiUrl}/api/exec`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: `CONFIG SET maxconnections ${cfgMaxConns}` }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+      }
+
+      // 2. Timeout
+      if (cfgTimeout) {
+        const res = await fetch(`${apiUrl}/api/exec`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: `CONFIG SET timeout ${cfgTimeout}` }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+      }
+
+      // 3. Max Payload Size
+      if (cfgMaxPayloadMb) {
+        const bytes = parseInt(cfgMaxPayloadMb, 10) * 1024 * 1024;
+        const res = await fetch(`${apiUrl}/api/exec`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: `CONFIG SET maxpayload ${bytes}` }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+      }
+
+      // 4. Default TTL
+      if (cfgDefaultTtl) {
+        const res = await fetch(`${apiUrl}/api/exec`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ command: `CONFIG SET default-ttl ${cfgDefaultTtl}` }),
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+      }
+
+      setCfgSavedMsg("Server configuration updated successfully!");
+      fetchStatus();
+    } catch (err: any) {
+      setCfgErrMsg(err.message || "Failed to update server configuration");
+    } finally {
+      setIsApplyingCfg(false);
+    }
+  };
 
   useEffect(() => {
     if (activeTab === "cli" && terminalBodyRef.current) {
@@ -314,7 +442,7 @@ export default function App() {
     let isErr = false;
 
     try {
-      const res = await fetch("http://127.0.0.1:6381/api/exec", {
+      const res = await fetch(`${apiUrl}/api/exec`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ command: cmd }),
@@ -395,6 +523,13 @@ export default function App() {
             <Key size={18} />
             <span>Key Browser ({status.dbSize})</span>
           </button>
+          <button
+            className={`nav-item ${activeTab === "network" ? "active" : ""}`}
+            onClick={() => setActiveTab("network")}
+          >
+            <Shield size={18} />
+            <span>Network & Security</span>
+          </button>
         </nav>
       </aside>
 
@@ -408,6 +543,7 @@ export default function App() {
                 {activeTab === "overview" && "sayoDB Dashboard Overview"}
                 {activeTab === "vector" && "Vector Engine & AI Cache"}
                 {activeTab === "keys" && "Key-Value Browser"}
+                {activeTab === "network" && "Graphical Network & Security Control Center"}
               </h1>
               <span className="vector-badge">
                 <Zap size={12} /> Vector Engine Active
@@ -417,17 +553,30 @@ export default function App() {
               Connected to {status.host}:{status.port} (In-Memory Cosine Similarity Store)
             </p>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              color: status.online ? "#10b981" : "#ef4444",
-              fontSize: "0.9rem",
-            }}
-          >
-            <Server size={16} />
-            <span>{status.online ? `Server Online (${status.port})` : "Server Offline"}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", background: "rgba(15, 23, 42, 0.6)", padding: "4px 8px", borderRadius: "6px", border: "1px solid var(--border-color)" }}>
+              <Globe size={13} style={{ color: "var(--text-muted)" }} />
+              <input
+                type="text"
+                value={apiUrl}
+                onChange={(e) => handleUpdateApiUrl(e.target.value)}
+                placeholder="http://127.0.0.1:6381"
+                title="sayoDB HTTP Bridge API Endpoint URL"
+                style={{ background: "transparent", border: "none", color: "#38bdf8", fontSize: "0.78rem", width: "170px", fontFamily: "var(--font-mono)", outline: "none" }}
+              />
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                color: status.online ? "#10b981" : "#ef4444",
+                fontSize: "0.9rem",
+              }}
+            >
+              <Server size={16} />
+              <span>{status.online ? `Server Online (${status.port})` : "Server Offline"}</span>
+            </div>
           </div>
         </header>
 
@@ -965,6 +1114,403 @@ export default function App() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* TAB 5: GRAPHICAL NETWORK & SECURITY CONTROL CENTER */}
+        {activeTab === "network" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px", overflowY: "auto", flex: 1, paddingBottom: "24px" }}>
+            {/* Top Grid: Security Status Cards */}
+            <div className="stats-grid">
+              {/* Listener Card */}
+              <div className="stat-card">
+                <div className="stat-card-header">
+                  <span className="stat-card-title">TCP / HTTP Listener</span>
+                  <div className="stat-card-icon">
+                    <Wifi size={18} style={{ color: "#38bdf8" }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="stat-card-value">{status.host}:{status.port}</div>
+                  <div className="stat-card-subtext" style={{ marginTop: "2px" }}>
+                    HTTP Bridge: <span style={{ color: "#38bdf8", fontWeight: 600 }}>{status.httpPort || status.port + 1}</span>
+                  </div>
+                </div>
+                <div className={`stat-badge ${status.host === "127.0.0.1" ? "badge-emerald" : "badge-amber"}`}>
+                  <Globe size={12} />
+                  <span>{status.host === "127.0.0.1" ? "ISOLATED (Localhost)" : "PUBLIC / WILDCARD"}</span>
+                </div>
+              </div>
+
+              {/* Protected Mode Card */}
+              <div className="stat-card">
+                <div className="stat-card-header">
+                  <span className="stat-card-title">Protected Mode</span>
+                  <div className="stat-card-icon">
+                    <Shield size={18} style={{ color: status.protectedModeActive ? "#34d399" : "#94a3b8" }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="stat-card-value" style={{ color: status.protectedModeActive ? "#34d399" : "#f8fafc" }}>
+                    {status.protectedModeActive ? "ACTIVE" : "INACTIVE"}
+                  </div>
+                  <div className="stat-card-subtext" style={{ marginTop: "2px" }}>
+                    {status.protectedModeActive ? "Remote queries blocked" : "Standard operation"}
+                  </div>
+                </div>
+                <div className={`stat-badge ${status.protectedModeActive ? "badge-emerald" : "badge-slate"}`}>
+                  <span>{status.protectedModeActive ? "Remote Guard Active" : "Open Access Mode"}</span>
+                </div>
+              </div>
+
+              {/* Authentication Card */}
+              <div className="stat-card">
+                <div className="stat-card-header">
+                  <span className="stat-card-title">Password Protection</span>
+                  <div className="stat-card-icon">
+                    {status.requirePassSet ? (
+                      <Lock size={18} style={{ color: "#34d399" }} />
+                    ) : (
+                      <Unlock size={18} style={{ color: "#fb7185" }} />
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className="stat-card-value" style={{ color: status.requirePassSet ? "#34d399" : "#f8fafc" }}>
+                    {status.requirePassSet ? "REQUIRED" : "NOT CONFIGURED"}
+                  </div>
+                  <div className="stat-card-subtext" style={{ marginTop: "2px" }}>
+                    {status.requirePassSet ? "requirepass is enabled" : "No server password set"}
+                  </div>
+                </div>
+                <div className={`stat-badge ${status.requirePassSet ? "badge-emerald" : "badge-slate"}`}>
+                  <span>{status.requirePassSet ? "AUTH Required" : "No Password Set"}</span>
+                </div>
+              </div>
+
+              {/* Connections Capacity Card */}
+              <div className="stat-card">
+                <div className="stat-card-header">
+                  <span className="stat-card-title">Socket Connections</span>
+                  <div className="stat-card-icon">
+                    <Network size={18} style={{ color: "#c084fc" }} />
+                  </div>
+                </div>
+                <div>
+                  <div className="stat-card-value">
+                    {status.connectedClients} <span style={{ fontSize: "0.9rem", color: "var(--text-muted)", fontWeight: 400 }}>/ {status.maxConnections || 10000}</span>
+                  </div>
+                  <div className="stat-card-subtext" style={{ marginTop: "2px" }}>
+                    Active TCP socket clients
+                  </div>
+                </div>
+                <div className="stat-badge badge-purple">
+                  <span>Zero-OOM Spiller Ready</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Live Runtime Configurator & DoS Guard Panel */}
+            <div style={{ background: "var(--bg-card)", backdropFilter: "blur(12px)", borderRadius: "12px", border: "1px solid var(--border-color)", padding: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <div>
+                  <h3 style={{ color: "#f8fafc", fontSize: "1.05rem", fontWeight: 600 }}>Live Runtime Configurator & Security Guard Controls</h3>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginTop: "2px" }}>
+                    Configure connection caps, payload ceilings, socket timeouts, and default TTL dynamically without server restart
+                  </p>
+                </div>
+                <button
+                  className="btn-primary"
+                  onClick={handleApplyConfig}
+                  disabled={isApplyingCfg || !status.online}
+                  style={{ padding: "8px 16px", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px", cursor: status.online ? "pointer" : "not-allowed" }}
+                >
+                  <Shield size={14} />
+                  <span>{isApplyingCfg ? "Applying..." : "Apply Configuration"}</span>
+                </button>
+              </div>
+
+              {cfgSavedMsg && (
+                <div style={{ background: "rgba(52, 211, 153, 0.15)", border: "1px solid rgba(52, 211, 153, 0.3)", color: "#34d399", padding: "10px 14px", borderRadius: "8px", fontSize: "0.85rem", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Check size={16} />
+                  <span>{cfgSavedMsg}</span>
+                </div>
+              )}
+
+              {cfgErrMsg && (
+                <div style={{ background: "rgba(244, 63, 94, 0.15)", border: "1px solid rgba(244, 63, 94, 0.3)", color: "#fb7185", padding: "10px 14px", borderRadius: "8px", fontSize: "0.85rem", marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <X size={16} />
+                  <span>{cfgErrMsg}</span>
+                </div>
+              )}
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
+                {/* Max Connections */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)" }}>
+                    Max Connections (Cap)
+                  </label>
+                  <input
+                    type="number"
+                    value={cfgMaxConns}
+                    onChange={(e) => setCfgMaxConns(e.target.value)}
+                    placeholder="1000"
+                    style={{ background: "rgba(15, 23, 42, 0.6)", border: "1px solid var(--border-color)", borderRadius: "6px", padding: "8px 12px", color: "#f8fafc", fontSize: "0.9rem" }}
+                  />
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Current limit: {status.maxConnections ?? 1000}</span>
+                </div>
+
+                {/* Idle Timeout */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)" }}>
+                    Idle Socket Timeout (seconds)
+                  </label>
+                  <input
+                    type="number"
+                    value={cfgTimeout}
+                    onChange={(e) => setCfgTimeout(e.target.value)}
+                    placeholder="300"
+                    style={{ background: "rgba(15, 23, 42, 0.6)", border: "1px solid var(--border-color)", borderRadius: "6px", padding: "8px 12px", color: "#f8fafc", fontSize: "0.9rem" }}
+                  />
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Current timeout: {status.timeout ?? 300}s (0 = disabled)</span>
+                </div>
+
+                {/* Max Payload Ceiling */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)" }}>
+                    Max Payload Ceiling (MB)
+                  </label>
+                  <input
+                    type="number"
+                    value={cfgMaxPayloadMb}
+                    onChange={(e) => setCfgMaxPayloadMb(e.target.value)}
+                    placeholder="64"
+                    style={{ background: "rgba(15, 23, 42, 0.6)", border: "1px solid var(--border-color)", borderRadius: "6px", padding: "8px 12px", color: "#f8fafc", fontSize: "0.9rem" }}
+                  />
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Current limit: {status.maxPayloadSize ? Math.round(status.maxPayloadSize / (1024 * 1024)) : 64} MB</span>
+                </div>
+
+                {/* Default Key TTL */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--text-muted)" }}>
+                    Default Key TTL (seconds)
+                  </label>
+                  <input
+                    type="number"
+                    value={cfgDefaultTtl}
+                    onChange={(e) => setCfgDefaultTtl(e.target.value)}
+                    placeholder="60"
+                    style={{ background: "rgba(15, 23, 42, 0.6)", border: "1px solid var(--border-color)", borderRadius: "6px", padding: "8px 12px", color: "#f8fafc", fontSize: "0.9rem" }}
+                  />
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Current default TTL: {status.defaultTtl ?? 60}s (0 = persistent)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Active TCP Client Connection Matrix Table */}
+            <div style={{ background: "var(--bg-card)", backdropFilter: "blur(12px)", borderRadius: "12px", border: "1px solid var(--border-color)", padding: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <div>
+                  <h3 style={{ color: "#f8fafc", fontSize: "1.05rem", fontWeight: 600 }}>Active TCP Client Socket Matrix</h3>
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginTop: "2px" }}>
+                    Real-time connected socket clients and remote IP address classification
+                  </p>
+                </div>
+                <span className="stat-badge badge-cyan">
+                  {status.connectedClients} Active Connection{status.connectedClients !== 1 ? "s" : ""}
+                </span>
+              </div>
+
+              <div className="data-table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Client ID</th>
+                      <th>Remote IP Address</th>
+                      <th>Network Interface Classification</th>
+                      <th>Authentication Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!status.clients || status.clients.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} style={{ textAlign: "center", color: "var(--text-muted)", padding: "20px" }}>
+                          No active TCP client connections detected (HTTP API Bridge is live).
+                        </td>
+                      </tr>
+                    ) : (
+                      status.clients.map((c) => {
+                        const statusText = c.authStatus || (!status.requirePassSet ? "No Auth Required" : c.isAuthenticated ? "Authenticated" : "Unauthenticated");
+                        const badgeClass = statusText === "Authenticated" ? "badge-emerald" : statusText === "No Auth Required" ? "badge-cyan" : "badge-rose";
+
+                        return (
+                          <tr key={c.id}>
+                            <td style={{ color: "#38bdf8", fontWeight: 600, fontFamily: "var(--font-mono)" }}>Client #{c.id}</td>
+                            <td style={{ fontFamily: "var(--font-mono)", color: "#e2e8f0" }}>{c.remoteAddress}</td>
+                            <td>
+                              <span className={`stat-badge ${c.isLoopback ? "badge-emerald" : "badge-amber"}`}>
+                                {c.isLoopback ? "Loopback (Localhost)" : "Remote Address"}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`stat-badge ${badgeClass}`}>
+                                {statusText}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Quick Interactive Control Panel & Setup Helper */}
+            <div style={{ background: "var(--bg-card)", backdropFilter: "blur(12px)", borderRadius: "12px", border: "1px solid var(--border-color)", padding: "20px" }}>
+              <h3 style={{ color: "#f8fafc", fontSize: "1.05rem", fontWeight: 600, marginBottom: "16px" }}>
+                Interactive Network & Security Setup Panel
+              </h3>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" }}>
+                {/* Copy Command 1 */}
+                <div className="snippet-card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: "#38bdf8", fontWeight: 600, fontSize: "0.82rem" }}>Bind Server to Localhost</span>
+                    <button
+                      className="copy-btn"
+                      onClick={() => {
+                        const cmd = 'SAYODB_HOST="127.0.0.1" pnpm dev:server';
+                        navigator.clipboard.writeText(cmd);
+                        setCopiedCode("host");
+                        setTimeout(() => setCopiedCode(null), 2000);
+                      }}
+                    >
+                      {copiedCode === "host" ? <Check size={14} style={{ color: "#34d399" }} /> : <Copy size={14} />}
+                      <span>{copiedCode === "host" ? "Copied!" : "Copy"}</span>
+                    </button>
+                  </div>
+                  <code style={{ color: "#e2e8f0", fontSize: "0.78rem", fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
+                    SAYODB_HOST="127.0.0.1" pnpm dev:server
+                  </code>
+                </div>
+
+                {/* Copy Command 2 */}
+                <div className="snippet-card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: "#34d399", fontWeight: 600, fontSize: "0.82rem" }}>Enable Server Password</span>
+                    <button
+                      className="copy-btn"
+                      onClick={() => {
+                        const cmd = 'SAYODB_PASSWORD="your_password" pnpm dev:server';
+                        navigator.clipboard.writeText(cmd);
+                        setCopiedCode("pass");
+                        setTimeout(() => setCopiedCode(null), 2000);
+                      }}
+                    >
+                      {copiedCode === "pass" ? <Check size={14} style={{ color: "#34d399" }} /> : <Copy size={14} />}
+                      <span>{copiedCode === "pass" ? "Copied!" : "Copy"}</span>
+                    </button>
+                  </div>
+                  <code style={{ color: "#e2e8f0", fontSize: "0.78rem", fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
+                    SAYODB_PASSWORD="your_password" pnpm dev:server
+                  </code>
+                </div>
+
+                {/* Copy Command 3 */}
+                <div className="snippet-card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: "#c084fc", fontWeight: 600, fontSize: "0.82rem" }}>CLI Connect with Auth</span>
+                    <button
+                      className="copy-btn"
+                      onClick={() => {
+                        const cmd = 'pnpm sayodb -a "your_password"';
+                        navigator.clipboard.writeText(cmd);
+                        setCopiedCode("cli");
+                        setTimeout(() => setCopiedCode(null), 2000);
+                      }}
+                    >
+                      {copiedCode === "cli" ? <Check size={14} style={{ color: "#34d399" }} /> : <Copy size={14} />}
+                      <span>{copiedCode === "cli" ? "Copied!" : "Copy"}</span>
+                    </button>
+                  </div>
+                  <code style={{ color: "#e2e8f0", fontSize: "0.78rem", fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
+                    pnpm sayodb -a "your_password"
+                  </code>
+                </div>
+              </div>
+
+              {/* GUI Console Authentication Interactive Quick Form */}
+              <div style={{ marginTop: "20px", background: "#060913", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "10px", padding: "18px" }}>
+                <h4 style={{ color: "#38bdf8", fontSize: "0.92rem", fontWeight: 600, marginBottom: "4px" }}>
+                  Authenticate GUI Console Session
+                </h4>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginBottom: "14px" }}>
+                  If your server has a password set (`requirepass`), enter your password below to execute an `AUTH` command in the Web CLI session.
+                </p>
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (!authInput.trim()) return;
+                    try {
+                      const res = await fetch(`${apiUrl}/api/exec`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ command: `AUTH ${authInput.trim()}` }),
+                      });
+                      const data = await res.json();
+                      if (res.ok && data.response === "OK") {
+                        setAuthStatusMsg("Authentication successful! GUI Console is ready.");
+                      } else {
+                        setAuthStatusMsg(`Authentication failed: ${data.error || data.response}`);
+                      }
+                    } catch (err: any) {
+                      setAuthStatusMsg(`Connection error: ${err.message}`);
+                    }
+                  }}
+                  style={{ display: "flex", gap: "10px", alignItems: "center" }}
+                >
+                  <input
+                    type="password"
+                    placeholder="Enter server password..."
+                    value={authInput}
+                    onChange={(e) => setAuthInput(e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: "rgba(15, 23, 42, 0.8)",
+                      border: "1px solid rgba(255, 255, 255, 0.12)",
+                      color: "#f8fafc",
+                      padding: "9px 14px",
+                      borderRadius: "6px",
+                      outline: "none",
+                      fontSize: "0.85rem",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      background: "linear-gradient(135deg, #06b6d4, #3b82f6)",
+                      color: "#ffffff",
+                      fontWeight: 600,
+                      border: "none",
+                      padding: "9px 18px",
+                      borderRadius: "6px",
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                      boxShadow: "0 4px 12px rgba(6, 182, 212, 0.25)",
+                    }}
+                  >
+                    Authenticate Session
+                  </button>
+                </form>
+                {authStatusMsg && (
+                  <div style={{ marginTop: "10px", fontSize: "0.8rem", color: authStatusMsg.includes("successful") ? "#34d399" : "#fb7185", fontWeight: 500 }}>
+                    {authStatusMsg}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </main>

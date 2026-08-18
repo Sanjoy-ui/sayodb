@@ -1,8 +1,12 @@
 import { CommandDefinition, CommandContext } from "./base.js";
 import { RESPEncoder } from "../protocol/encoder.js";
 import { logger } from "../utils/logger.js";
+import { safeComparePassword } from "../utils/security.js";
+import { isProtectedModeActive, isLoopbackIP } from "../utils/network-security.js";
 import { semanticStore, parseVectorInput } from "../engine/vector/index.js";
 import { schemaRegistry } from "../engine/schema/index.js";
+import { parseMemorySize } from "../config/loader.js";
+import { ConnectionState } from "../network/connection.js";
 
 export class CommandRegistry {
   private commands: Map<string, CommandDefinition> = new Map();
@@ -15,8 +19,60 @@ export class CommandRegistry {
     this.commands.set(cmd.name.toUpperCase(), cmd);
   }
 
+  public resolveCommandName(incomingCmd: string, renameMap: Record<string, string> = {}): string | null {
+    const upperIncoming = incomingCmd.toUpperCase();
+
+    // If upperIncoming is an original command that has been renamed or disabled in config
+    if (upperIncoming in renameMap) {
+      return null;
+    }
+
+    // Check if upperIncoming is a configured obfuscated target alias
+    for (const [origCmd, newAlias] of Object.entries(renameMap)) {
+      if (newAlias.toUpperCase() === upperIncoming) {
+        if (newAlias === "") return null; // Disables command completely
+        return origCmd.toUpperCase();
+      }
+    }
+
+    return upperIncoming;
+  }
+
   public dispatch(ctx: CommandContext): Buffer {
-    const cmdName = ctx.commandName.toUpperCase();
+    // FSM Terminal State Guard
+    if (ctx.client?.state === ConnectionState.DISCONNECTED) {
+      return RESPEncoder.encodeError("Client connection is closed", "ERR");
+    }
+
+    const renameMap = ctx.client?.serverConfig?.renameCommands || {};
+    const resolvedName = this.resolveCommandName(ctx.commandName, renameMap);
+
+    if (!resolvedName) {
+      return RESPEncoder.encodeError(`unknown command '${ctx.commandName}'`, "ERR");
+    }
+
+    const cmdName = resolvedName;
+
+    // Protected Mode Interception Guard (Redis 3.2+ specification)
+    const isClientLoopback = ctx.client.isLoopback ?? (ctx.client.remoteAddress ? isLoopbackIP(ctx.client.remoteAddress) : true);
+    if (isProtectedModeActive(ctx.client.serverConfig) && !isClientLoopback) {
+      const allowedCommands = new Set(["AUTH", "PING", "INFO", "QUIT", "HELP"]);
+      if (!allowedCommands.has(cmdName)) {
+        return RESPEncoder.encodeError(
+          "sayoDB is running in protected mode because it is bound to 0.0.0.0 without a password. Queries from remote clients are blocked. To fix this, set a password via requirepass / SAYODB_PASSWORD or bind to 127.0.0.1.",
+          "DENIED"
+        );
+      }
+    }
+
+    // Authentication Command Interception Guard (FSM UNAUTHENTICATED State)
+    const requirePass = ctx.client.serverConfig.requirePass;
+    if (requirePass && (!ctx.client.isAuthenticated || ctx.client.state === ConnectionState.UNAUTHENTICATED)) {
+      if (cmdName !== "AUTH" && cmdName !== "PING" && cmdName !== "QUIT" && cmdName !== "HELP") {
+        return RESPEncoder.encodeError("Authentication required.", "NOAUTH");
+      }
+    }
+
     const definition = this.commands.get(cmdName);
 
     if (!definition) {
@@ -54,6 +110,50 @@ export class CommandRegistry {
     };
     this.register(pingHandler);
 
+    // AUTH [username] password
+    this.register({
+      name: "AUTH",
+      arity: -2,
+      handler: (ctx) => {
+        const requirePass = ctx.client.serverConfig.requirePass;
+        if (!requirePass) {
+          return RESPEncoder.encodeError("Client sent AUTH, but no password is set", "ERR");
+        }
+
+        // Support AUTH <password> (1 arg) or AUTH <username> <password> (2 args)
+        const passwordInput = ctx.args.length >= 2 ? ctx.args[1] : ctx.args[0];
+
+        if (safeComparePassword(passwordInput, requirePass)) {
+          if (typeof (ctx.client as any).transitionTo === "function") {
+            (ctx.client as any).transitionTo(ConnectionState.AUTHENTICATED);
+          } else {
+            ctx.client.isAuthenticated = true;
+          }
+          return RESPEncoder.OK;
+        }
+
+        return RESPEncoder.encodeError("invalid password", "ERR");
+      },
+    });
+
+    // QUIT
+    this.register({
+      name: "QUIT",
+      arity: 1,
+      handler: (ctx) => {
+        if (typeof (ctx.client as any).transitionTo === "function") {
+          (ctx.client as any).transitionTo(ConnectionState.DISCONNECTED);
+        }
+        if (ctx.client.socket) {
+          try {
+            ctx.client.socket.write(RESPEncoder.OK);
+          } catch {}
+          ctx.client.socket.destroy();
+        }
+        return RESPEncoder.OK;
+      },
+    });
+
     // ECHO message
     this.register({
       name: "ECHO",
@@ -84,6 +184,7 @@ export class CommandRegistry {
   TIMEOUT                  TTL                     TIMEOUT user
   WIPE / CLEARALL          FLUSHDB                 WIPE
   PING                     PING                    PING
+  AUTH                     AUTH                    AUTH my_password
 
   ----------------------------------------------------------------------
   AI & Semantic Vector Cache Commands
@@ -100,6 +201,22 @@ export class CommandRegistry {
   SCHEMA       SCHEMA SET <name> <def_json> | GET <name> | DEL <name> | LIST
   SETJSON      SETJSON <key> [SCHEMA schema_name] <payload_json>
   GETJSON      GETJSON <key>
+
+  ----------------------------------------------------------------------
+  Password Setup & Authentication Guide
+  ----------------------------------------------------------------------
+  Server Password Setup:
+    • Environment Var:  SAYODB_PASSWORD="your_password" pnpm dev
+    • Command Line:     sayodb-server --requirepass "your_password"
+    • Config File:      sayodb.conf -> requirepass "your_password"
+
+  CLI Authentication:
+    • Command Flag:     sayodb-cli -a "your_password"
+    • Environment Var:  SAYODB_PASSWORD="your_password" sayodb-cli
+    • Interactive REPL: AUTH "your_password"
+
+  GUI Authentication:
+    • Console Tab:      AUTH "your_password" in the terminal tab
 ========================================================================`;
 
     this.register({
@@ -134,6 +251,114 @@ export class CommandRegistry {
       handler: (ctx) => RESPEncoder.encodeInteger(ctx.store.dbsize()),
     });
 
+    // CONFIG GET / CONFIG SET
+    this.register({
+      name: "CONFIG",
+      arity: -2,
+      isWrite: true,
+      handler: (ctx) => {
+        const subcommand = ctx.args[0].toUpperCase();
+        const param = ctx.args[1] ? ctx.args[1].toLowerCase() : "";
+
+        if (subcommand === "GET") {
+          const config = ctx.client.serverConfig;
+          const result: string[] = [];
+
+          const appendPair = (key: string, val: string) => {
+            result.push(key, val);
+          };
+
+          if (param === "*" || param === "maxconnections" || param === "maxclients") {
+            appendPair("maxconnections", String(config.maxConnections));
+          }
+          if (param === "*" || param === "timeout") {
+            appendPair("timeout", String(config.timeout));
+          }
+          if (param === "*" || param === "maxpayload" || param === "maxpayloadsize" || param === "maxpayload-size") {
+            appendPair("maxpayload", String(config.maxPayloadSize));
+          }
+          if (param === "*" || param === "default-ttl" || param === "default_ttl") {
+            appendPair("default-ttl", String(config.defaultTtl));
+          }
+          if (param === "*" || param === "protected-mode" || param === "protectedmode") {
+            appendPair("protected-mode", config.protectedMode ? "yes" : "no");
+          }
+          if (param === "*" || param === "requirepass") {
+            appendPair("requirepass", config.requirePass || "");
+          }
+          if (param === "*" || param === "rename-command" || param === "renamecommand" || param === "renamecommands") {
+            appendPair("rename-command", JSON.stringify(config.renameCommands || {}));
+          }
+
+          return RESPEncoder.encodeArray(result);
+        }
+
+        if (subcommand === "SET") {
+          if (ctx.args.length < 3) {
+            return RESPEncoder.encodeError("wrong number of arguments for 'CONFIG SET' command");
+          }
+
+          const val = ctx.args[2];
+          const config = ctx.client.serverConfig;
+
+          switch (param) {
+            case "maxconnections":
+            case "maxclients": {
+              const parsed = parseInt(val, 10);
+              if (isNaN(parsed) || parsed <= 0) {
+                return RESPEncoder.encodeError("Invalid maxconnections value");
+              }
+              config.maxConnections = parsed;
+              break;
+            }
+            case "timeout": {
+              const parsed = parseInt(val, 10);
+              if (isNaN(parsed) || parsed < 0) {
+                return RESPEncoder.encodeError("Invalid timeout value");
+              }
+              config.timeout = parsed;
+              break;
+            }
+            case "maxpayload":
+            case "maxpayloadsize":
+            case "maxpayload-size": {
+              const parsed = parseMemorySize(val);
+              if (isNaN(parsed) || parsed <= 0) {
+                return RESPEncoder.encodeError("Invalid maxpayload value");
+              }
+              config.maxPayloadSize = parsed;
+              break;
+            }
+            case "default-ttl":
+            case "default_ttl": {
+              const parsed = parseInt(val, 10);
+              if (isNaN(parsed) || parsed < 0) {
+                return RESPEncoder.encodeError("Invalid default-ttl value");
+              }
+              config.defaultTtl = parsed;
+              break;
+            }
+            case "protected-mode":
+            case "protectedmode": {
+              const p = val.toLowerCase();
+              config.protectedMode = p === "yes" || p === "true" || p === "1";
+              break;
+            }
+            case "requirepass": {
+              config.requirePass = val;
+              break;
+            }
+            default:
+              return RESPEncoder.encodeError(`Unsupported CONFIG SET parameter '${param}'`);
+          }
+
+          return RESPEncoder.OK;
+        }
+
+        return RESPEncoder.encodeError(`Unknown CONFIG subcommand '${subcommand}'`);
+      },
+    });
+
     // FLUSHDB / WIPE / CLEARALL
     const flushHandler: CommandDefinition = {
       name: "FLUSHDB",
@@ -145,6 +370,7 @@ export class CommandRegistry {
       },
     };
     this.register(flushHandler);
+    this.register({ ...flushHandler, name: "FLUSHALL" });
     this.register({ ...flushHandler, name: "WIPE" });
     this.register({ ...flushHandler, name: "CLEARALL" });
 
