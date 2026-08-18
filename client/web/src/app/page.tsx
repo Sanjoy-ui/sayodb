@@ -34,6 +34,8 @@ import {
   Bug,
   Lightbulb,
   MessageSquare,
+  Box,
+  BookOpen,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -156,7 +158,7 @@ export default function LandingPage() {
   }, [jsonText]);
 
   const handleCopyCmd = () => {
-    navigator.clipboard.writeText("pnpm sayodb");
+    navigator.clipboard.writeText("npx sayodb");
     setCopiedCmd(true);
     setTimeout(() => setCopiedCmd(false), 2000);
   };
@@ -213,12 +215,12 @@ export default function LandingPage() {
       <Navbar />
 
       {/* 4. HERO SECTION - FLUID RESPONSIVE HERO GRID */}
-      <section className="section-padding" style={{ maxWidth: "1340px", margin: "0 auto", padding: "120px 48px 100px" }}>
+      <section className="section-padding hero-top-padding" style={{ maxWidth: "1340px", margin: "0 auto", padding: "120px 48px 100px" }}>
         <div className="grid-hero">
           <div>
             <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "4px 12px", borderRadius: "24px", background: "rgba(94, 106, 210, 0.12)", border: "1px solid rgba(94, 106, 210, 0.3)", color: "var(--accent-indigo)", fontSize: "0.78rem", fontWeight: 500, marginBottom: "20px" }}>
               <Sparkles size={13} />
-              <span>Launching Soon</span>
+              <span>100% Open Source (MIT)</span>
               <span style={{ color: "var(--text-dim)" }}>|</span>
               <span style={{ color: "var(--accent-mint)" }}>0.1ms Latency</span>
             </div>
@@ -232,39 +234,60 @@ export default function LandingPage() {
             </p>
 
             <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap", marginBottom: "36px" }}>
-              <a href="#playground" className="btn-primary btn-mobile-full">
-                <Terminal size={16} />
-                <span>Interactive Web CLI</span>
-              </a>
+              <Link href="/docs" className="btn-primary btn-mobile-full">
+                <span>Get Started</span>
+                <ArrowRight size={16} />
+              </Link>
 
               <button onClick={handleCopyCmd} className="code-font btn-mobile-full" style={{ background: "var(--bg-card)", border: "1px solid var(--border-card)", borderRadius: "10px", padding: "12px 20px", color: "var(--accent-indigo)", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px", fontSize: "0.92rem", transition: "all 0.2s" }}>
                 <span style={{ color: "var(--text-dim)" }}>$</span>
-                <span>pnpm sayodb</span>
+                <span>npx sayodb</span>
                 <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "0.78rem", padding: "3px 8px", borderRadius: "6px", background: copiedCmd ? "rgba(52, 211, 153, 0.15)" : "rgba(0, 0, 0, 0.05)", color: copiedCmd ? "var(--accent-mint)" : "var(--text-muted)" }}>
                   {copiedCmd ? <Check size={13} /> : <Copy size={13} />}
                   <span>{copiedCmd ? "Copied" : "Copy"}</span>
                 </div>
               </button>
+
+              <a href="https://www.npmjs.com/package/@sayodb/client" target="_blank" rel="noreferrer" className="btn-secondary btn-mobile-full" style={{ padding: "12px 18px", fontSize: "0.88rem" }}>
+                <Cpu size={16} style={{ color: "var(--accent-mint)" }} />
+                <span>NPM Package</span>
+              </a>
+
+              <a href="https://hub.docker.com/r/sanjoydb/sayodb-server" target="_blank" rel="noreferrer" className="btn-secondary btn-mobile-full" style={{ padding: "12px 18px", fontSize: "0.88rem" }}>
+                <Box size={16} style={{ color: "var(--accent-indigo)" }} />
+                <span>Docker Hub</span>
+              </a>
             </div>
 
-            <div className="grid-3col" style={{ paddingTop: "24px", borderTop: "1px solid var(--border-card)" }}>
-              <div>
-                <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "var(--accent-mint)" }}>&lt; 0.1ms</div>
-                <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>Average Read/Write</div>
+            {/* Hero Stats & Mobile Split Container */}
+            <div className="hero-bottom-mobile-split">
+              <div className="grid-3col hero-stats-mobile-left" style={{ paddingTop: "24px", borderTop: "1px solid var(--border-card)" }}>
+                <div>
+                  <div className="stat-num" style={{ fontSize: "1.8rem", fontWeight: 900, color: "var(--accent-mint)" }}>&lt; 0.1ms</div>
+                  <div className="stat-label" style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>Average Read/Write</div>
+                </div>
+                <div>
+                  <div className="stat-num" style={{ fontSize: "1.8rem", fontWeight: 900, color: "var(--accent-indigo)" }}>85% RAM</div>
+                  <div className="stat-label" style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>Zero-OOM Trigger</div>
+                </div>
+                <div>
+                  <div className="stat-num" style={{ fontSize: "1.8rem", fontWeight: 900, color: "var(--accent-indigo)" }}>Float32</div>
+                  <div className="stat-label" style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>Cosine Vector Search</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "var(--accent-indigo)" }}>85% RAM</div>
-                <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>Zero-OOM Trigger</div>
-              </div>
-              <div>
-                <div style={{ fontSize: "1.8rem", fontWeight: 900, color: "var(--accent-indigo)" }}>Float32</div>
-                <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "2px" }}>Cosine Vector Search</div>
+
+              {/* Mobile Only Peeking Database Graphic */}
+              <div className="hero-graphic-mobile-right mobile-only-hero-graphic">
+                <img
+                  src="/in-memory-hero.svg"
+                  alt="sayoDB In-Memory Vector Database Architecture"
+                />
               </div>
             </div>
           </div>
 
-          {/* Hero Right Visual Graphic - In-Memory Architecture SVG */}
-          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%" }}>
+          {/* Desktop Right Visual Graphic */}
+          <div className="desktop-hero-graphic-only" style={{ display: "flex", justifyContent: "center", alignItems: "center", width: "100%" }}>
             <div style={{ width: "100%", maxWidth: "580px", position: "relative" }}>
               <img
                 src="/in-memory-hero.svg"
@@ -276,6 +299,78 @@ export default function LandingPage() {
                   filter: "drop-shadow(0 20px 40px rgba(94, 106, 210, 0.25))",
                 }}
               />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4.5. EXPLICIT PROBLEM vs SOLUTION COMPARISON SECTION */}
+      <section className="section-padding" style={{ maxWidth: "1340px", margin: "0 auto", padding: "80px 48px 100px", borderTop: "1px solid var(--border-card)" }}>
+        <div style={{ textAlign: "center", marginBottom: "56px" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "4px 12px", borderRadius: "24px", background: "rgba(94, 106, 210, 0.12)", border: "1px solid rgba(94, 106, 210, 0.3)", color: "var(--accent-indigo)", fontSize: "0.78rem", fontWeight: 600, marginBottom: "16px" }}>
+            <Sparkles size={13} />
+            <span>Why sayoDB Engine</span>
+          </div>
+          <h2 style={{ fontSize: "2.4rem", fontWeight: 900, marginBottom: "14px", color: "var(--text-main)" }}>
+            Built To Replace Fragmented In-Memory Stack Pain
+          </h2>
+          <p style={{ color: "var(--text-muted)", fontSize: "1.05rem", maxWidth: "720px", margin: "0 auto", lineHeight: 1.6 }}>
+            Traditional in-memory key-value stores crash when memory limits are hit, lack native AI vector capabilities, and pollute microservice pipelines with unstructured data.
+          </p>
+        </div>
+
+        <div className="grid-3col" style={{ gap: "32px" }}>
+          {/* Item 1: OOM Prevention */}
+          <div style={{ padding: "12px 8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--accent-indigo)", fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "12px" }}>
+              <HardDrive size={15} />
+              <span>Zero-OOM Tiering</span>
+            </div>
+            <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "10px" }}>
+              Memory Spilling Engine
+            </h3>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", lineHeight: 1.65, marginBottom: "20px" }}>
+              Standard Redis nodes crash violently or drop hot keys when dataset memory exceeds host RAM limits. sayoDB automatically spills cold LRU pages to local NVMe disk at 85% RAM trigger.
+            </p>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--accent-mint)", fontSize: "0.82rem", fontWeight: 600 }}>
+              <CheckCircle2 size={14} />
+              <span>100% Zero Node Downtime</span>
+            </div>
+          </div>
+
+          {/* Item 2: Native Vector Engine */}
+          <div style={{ padding: "12px 8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--accent-indigo)", fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "12px" }}>
+              <Brain size={15} />
+              <span>AI Vector Engine</span>
+            </div>
+            <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "10px" }}>
+              Native Cosine Similarity Search
+            </h3>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", lineHeight: 1.65, marginBottom: "20px" }}>
+              RAG &amp; LLM memory pipelines force developers to run separate vector databases alongside Redis. sayoDB embeds Float32 Cosine Similarity search natively via <code className="code-font" style={{ color: "var(--accent-indigo)" }}>SEMSET</code> &amp; <code className="code-font" style={{ color: "var(--accent-indigo)" }}>SEMSEARCH</code>.
+            </p>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--accent-indigo)", fontSize: "0.82rem", fontWeight: 600 }}>
+              <CheckCircle2 size={14} />
+              <span>Sub-millisecond Vector Match</span>
+            </div>
+          </div>
+
+          {/* Item 3: Schema Contracts */}
+          <div style={{ padding: "12px 8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--accent-mint)", fontSize: "0.78rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "12px" }}>
+              <ShieldCheck size={15} />
+              <span>Schema Safety</span>
+            </div>
+            <h3 style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-main)", marginBottom: "10px" }}>
+              Protocol-Level JSON Contracts
+            </h3>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", lineHeight: 1.65, marginBottom: "20px" }}>
+              Unstructured KV stores allow missing fields and broken payloads into microservices. sayoDB pre-compiles JSON schemas (<code className="code-font" style={{ color: "#FBBF24" }}>SCHEMA SET</code>) to enforce contracts before writes touch RAM.
+            </p>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "#FBBF24", fontSize: "0.82rem", fontWeight: 600 }}>
+              <CheckCircle2 size={14} />
+              <span>Pre-Compiled Schema Safety</span>
             </div>
           </div>
         </div>
@@ -710,45 +805,49 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 9. LAUNCH STATUS & WAITLIST */}
-      <section id="waitlist" className="section-padding" style={{ maxWidth: "1340px", margin: "0 auto 100px", padding: "0 48px" }}>
+      {/* 9. LAUNCH STATUS & QUICKSTART CTA */}
+      <section id="get-started" className="section-padding" style={{ maxWidth: "1340px", margin: "0 auto 100px", padding: "0 48px" }}>
         <div className="glass-card container-padding" style={{ padding: "64px 36px", textAlign: "center", background: "var(--bg-card)" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "4px 12px", borderRadius: "24px", background: "rgba(94, 106, 210, 0.15)", color: "var(--accent-indigo)", fontSize: "0.82rem", fontWeight: 600, marginBottom: "20px", border: "1px solid rgba(94, 106, 210, 0.3)" }}>
-            <Clock size={13} style={{ color: "var(--accent-indigo)" }} />
-            <span>Product Status: Launching Soon</span>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "4px 12px", borderRadius: "24px", background: "rgba(52, 211, 153, 0.12)", color: "var(--accent-mint)", fontSize: "0.82rem", fontWeight: 600, marginBottom: "20px", border: "1px solid rgba(52, 211, 153, 0.3)" }}>
+            <Sparkles size={13} style={{ color: "var(--accent-mint)" }} />
+            <span>100% Open Source (MIT) | v0.1.2 Live</span>
           </div>
 
-          <h2 style={{ fontSize: "2.2rem", fontWeight: 900, marginBottom: "14px", color: "var(--text-main)" }}>
-            Join the Early Access Waitlist
+          <h2 style={{ fontSize: "2.4rem", fontWeight: 900, marginBottom: "14px", color: "var(--text-main)" }}>
+            Start Building with sayoDB Today
           </h2>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.98rem", maxWidth: "620px", margin: "0 auto 28px" }}>
-            Be among the first engineering teams to deploy sayoDB with Zero-OOM Tiered Spilling and AI Vector Caching in production.
+          <p style={{ color: "var(--text-muted)", fontSize: "1.02rem", maxWidth: "660px", margin: "0 auto 32px", lineHeight: 1.6 }}>
+            Deploy the zero-OOM in-memory vector engine in minutes via Docker, NPM, or CLI. Free, open source, and production ready.
           </p>
 
-          <form onSubmit={handleWaitlistSubmit} style={{ maxWidth: "520px", margin: "0 auto", display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <div style={{ position: "relative", flex: 1, minWidth: "220px" }}>
-              <Mail size={16} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-              <input
-                type="email"
-                required
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="Enter your work email..."
-                style={{ width: "100%", background: "var(--bg-card-hover)", border: "1px solid var(--border-card)", borderRadius: "8px", padding: "12px 14px 12px 40px", color: "var(--text-main)", fontSize: "0.9rem", outline: "none" }}
-              />
-            </div>
-            <button type="submit" className="btn-primary btn-mobile-full" style={{ whiteSpace: "nowrap" }}>
-              <span>Request Access</span>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "14px", flexWrap: "wrap", marginBottom: "28px" }}>
+            <Link href="/docs" className="btn-primary btn-mobile-full" style={{ padding: "12px 24px", fontSize: "0.92rem" }}>
+              <BookOpen size={16} />
+              <span>Read Documentation</span>
               <ArrowRight size={15} />
-            </button>
-          </form>
+            </Link>
 
-          {emailSubmitted && (
-            <div style={{ marginTop: "16px", color: "var(--accent-mint)", fontSize: "0.9rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-              <CheckCircle2 size={16} />
-              <span>You're on the waitlist! We'll notify you as soon as v1.0 Public Beta opens.</span>
-            </div>
-          )}
+            <button onClick={handleCopyCmd} className="code-font btn-mobile-full" style={{ background: "var(--bg-card-hover)", border: "1px solid var(--border-card)", borderRadius: "8px", padding: "11px 18px", color: "var(--accent-indigo)", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontSize: "0.9rem" }}>
+              <span style={{ color: "var(--text-dim)" }}>$</span>
+              <span>npx sayodb</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "0.76rem", padding: "2px 6px", borderRadius: "4px", background: copiedCmd ? "rgba(52, 211, 153, 0.15)" : "rgba(0, 0, 0, 0.05)", color: copiedCmd ? "var(--accent-mint)" : "var(--text-muted)" }}>
+                {copiedCmd ? <Check size={12} /> : <Copy size={12} />}
+                <span>{copiedCmd ? "Copied" : "Copy"}</span>
+              </div>
+            </button>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "20px", flexWrap: "wrap", fontSize: "0.86rem", color: "var(--text-muted)" }}>
+            <a href="https://www.npmjs.com/package/@sayodb/client" target="_blank" rel="noreferrer" style={{ color: "var(--accent-mint)", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <Cpu size={14} />
+              <span>NPM: @sayodb/client</span>
+            </a>
+            <span>•</span>
+            <a href="https://hub.docker.com/r/sanjoydb/sayodb-server" target="_blank" rel="noreferrer" style={{ color: "var(--accent-indigo)", textDecoration: "none", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <Box size={14} />
+              <span>Docker: sanjoydb/sayodb-server</span>
+            </a>
+          </div>
         </div>
       </section>
 

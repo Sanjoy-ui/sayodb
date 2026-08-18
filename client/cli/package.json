@@ -1,6 +1,6 @@
 {
   "name": "sayodb",
-  "version": "0.1.1",
+  "version": "0.1.5",
   "description": "In-memory vector store and key-value database with zero-OOM spilling",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -17,7 +17,7 @@
   "scripts": {
     "dev": "tsx src/cli.ts",
     "sayodb": "tsx src/cli.ts",
-    "build": "tsup",
+    "build": "tsup && chmod +x dist/cli.js dist/cli.mjs",
     "prepublishOnly": "pnpm run build",
     "start": "node dist/cli.js",
     "test": "vitest run",
@@ -40,7 +40,7 @@
   "author": "sayoDB Team",
   "license": "MIT",
   "dependencies": {
-    "@sayodb/client": "workspace:*",
+    "@sayodb/client": "^0.1.2",
     "commander": "^12.0.0"
   },
   "devDependencies": {
@@ -48,6 +48,6 @@
     "tsup": "^8.0.2",
     "tsx": "^4.7.2",
     "typescript": "^5.4.5",
-    "vitest": "^4.1.10"
+    "vitest": "^1.5.0"
   }
 }

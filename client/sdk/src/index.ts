@@ -226,6 +226,46 @@ export class SayoDBClient {
     return this.sendCommand(args);
   }
 
+  public async echo(message: string): Promise<string> {
+    return this.sendCommand(["ECHO", message]);
+  }
+
+  public async info(): Promise<string> {
+    return this.sendCommand(["INFO"]);
+  }
+
+  public async dbsize(): Promise<number> {
+    return this.sendCommand(["DBSIZE"]);
+  }
+
+  public async mget(...keys: string[]): Promise<(string | null)[]> {
+    return this.sendCommand(["MGET", ...keys]);
+  }
+
+  public async mset(record: Record<string, string>): Promise<string> {
+    const args: string[] = ["MSET"];
+    for (const [k, v] of Object.entries(record)) {
+      args.push(k, String(v));
+    }
+    return this.sendCommand(args);
+  }
+
+  public async type(key: string): Promise<string> {
+    return this.sendCommand(["TYPE", key]);
+  }
+
+  public async incrby(key: string, delta: number): Promise<number> {
+    return this.sendCommand(["INCRBY", key, String(delta)]);
+  }
+
+  public async configGet(param = "*"): Promise<string[]> {
+    return this.sendCommand(["CONFIG", "GET", param]);
+  }
+
+  public async configSet(param: string, value: string): Promise<string> {
+    return this.sendCommand(["CONFIG", "SET", param, value]);
+  }
+
   // --- JSON Schema & Structured Document Methods ---
 
   public async schemaSet(schemaName: string, definitionJsonStr: string): Promise<string> {
@@ -624,6 +664,30 @@ class SayoDBManager {
 
   public del(...keys: string[]): Promise<number> {
     return this.client.del(...keys);
+  }
+
+  public mget(...keys: string[]): Promise<(string | null)[]> {
+    return this.client.mget(...keys);
+  }
+
+  public mset(record: Record<string, string>): Promise<string> {
+    return this.client.mset(record);
+  }
+
+  public info(): Promise<string> {
+    return this.client.info();
+  }
+
+  public dbsize(): Promise<number> {
+    return this.client.dbsize();
+  }
+
+  public incrby(key: string, delta: number): Promise<number> {
+    return this.client.incrby(key, delta);
+  }
+
+  public type(key: string): Promise<string> {
+    return this.client.type(key);
   }
 
   public semset(
