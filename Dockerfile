@@ -1,5 +1,5 @@
 # Stage 1: Build stage
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -19,11 +19,11 @@ RUN pnpm install --ignore-scripts
 # Copy source code
 COPY . .
 
-# Build server distribution
-RUN pnpm --filter sayodb-server build
+# Build workspace packages in dependency order
+RUN pnpm -r build
 
 # Stage 2: Minimal Production Runtime
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
@@ -31,10 +31,15 @@ ENV NODE_ENV=production
 ENV SAYODB_PORT=6380
 ENV SAYODB_HOST=0.0.0.0
 
-# Copy compiled server distribution and config
+# Copy compiled server distribution, CLI distribution, and configs
 COPY --from=builder /app/server/dist ./dist
 COPY --from=builder /app/server/package.json ./package.json
 COPY --from=builder /app/server/sayodb.conf ./sayodb.conf
+COPY --from=builder /app/client/cli/dist ./cli-dist
+COPY --from=builder /app/client/cli/package.json ./cli-package.json
+
+# Symlink CLI executable globally so 'docker exec -it <container> sayodb-cli' works instantly
+RUN ln -s /app/cli-dist/cli.js /usr/local/bin/sayodb-cli && chmod +x /app/cli-dist/cli.js
 
 # Persistent data volume for AOF log & RDB snapshots
 VOLUME ["/data"]
@@ -42,3 +47,4 @@ VOLUME ["/data"]
 EXPOSE 6380
 
 CMD ["node", "dist/index.js"]
+

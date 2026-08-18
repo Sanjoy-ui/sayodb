@@ -1,4 +1,4 @@
-# sayoDB (`sayodb`)
+# sayoDB CLI (`sayodb`)
 
 > **The In-Memory Vector Store & Key-Value Database That Never Runs Out of Memory.**
 
@@ -6,7 +6,20 @@ High-performance in-memory database featuring **Zero-OOM Tiered Spilling** to di
 
 ---
 
-## ⚡ Instant Execution (No Installation Required)
+## Running the sayoDB Engine
+
+Before connecting with the CLI, start a sayoDB database server instance using Docker:
+
+```bash
+docker run -d --name sayodb -p 6380:6380 -p 6381:6381 sanjoydb/sayodb-server:latest
+```
+
+- **Server Docker Image:** `sanjoydb/sayodb-server:latest`
+- **Web GUI Dashboard:** `sanjoydb/sayodb-gui:latest` (Access at `http://localhost:8080`)
+
+---
+
+## Instant Execution (No Installation Required)
 
 Run the interactive terminal CLI instantly with `npx` or `bunx`:
 
@@ -18,7 +31,7 @@ bunx sayodb
 
 ---
 
-## 📦 Installation
+## Installation
 
 Install globally as a CLI tool or as a project dependency across **npm**, **pnpm**, **yarn**, or **bun**:
 
@@ -42,7 +55,7 @@ pnpm add -g sayodb
 
 ---
 
-## 🚀 Quickstart CLI Commands
+## Quickstart CLI Commands
 
 Once connected to your sayoDB server (default `127.0.0.1:6380`):
 
@@ -63,6 +76,6 @@ SETJSON user:101 SCHEMA user_schema '{"name":"Alice","age":25}'
 
 ---
 
-## 📄 License
+## License
 
 MIT © 2026 sayoDB Team

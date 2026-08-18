@@ -1,6 +1,6 @@
 {
   "name": "sayodb",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "In-memory vector store and key-value database with zero-OOM spilling",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

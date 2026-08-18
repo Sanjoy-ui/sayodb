@@ -9,4 +9,5 @@ export default defineConfig({
   clean: true,
   target: "node20",
   minify: false,
+  noExternal: [/(.*)/],
 });
